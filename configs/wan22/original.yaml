@@ -1,0 +1,5 @@
+# Identity control. inspect requires only this source path; no weights loaded.
+model:
+  source: ${WAN22_SOURCE}
+width:
+  stages: [1024, 1024, 1024, 512, 256]

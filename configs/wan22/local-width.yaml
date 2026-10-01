@@ -1,0 +1,12 @@
+# Only the inside of selected residual blocks is narrowed.
+model:
+  source: ${WAN22_SOURCE}
+width:
+  stages: [1024, 1024, 1024, 512, 256]
+  hidden:
+    upsamples.2.upsamples.0: 256
+    upsamples.2.upsamples.1: 256
+    upsamples.2.upsamples.2: 256
+    upsamples.3.upsamples.0: 128
+    upsamples.3.upsamples.1: 128
+    upsamples.3.upsamples.2: 128
