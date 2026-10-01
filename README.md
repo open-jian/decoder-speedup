@@ -101,14 +101,23 @@ CUDA_VISIBLE_DEVICES=0 python -m decoder_speedup train configs/wan22/width.yaml
 
 `reconstruction_updates` 是第一阶段 G 优化器更新数；`adversarial_updates` 是后续 GAN 阶段 G 更新数。两者之和是硬停止预算。`accumulation` 每积累 N 个批次更新一次 G。GAN 阶段每次 G 更新后按 `discriminator_updates` 更新 D，每次 D 更新使用这 N 批真实/生成视频的平均损失。D 用 hinge loss，G 用 `-D(fake)`；可选按最后 RGB 卷积上的梯度范数给 GAN 权重自适应缩放。
 
-示例 `20000 + 0` 默认不启动 GAN。可预先配置两个阶段的预算，自动切换；如果看完第一阶段画质才决定 GAN 预算，另开配置，设 `init: checkpoint`、`student_checkpoint: 第一阶段/student.pt`、`reconstruction_updates: 0`、`adversarial_updates: 计划更新数`。这会以 EMA 热启动并新建优化器与判别器，不是完整续训。
+主配置采用 [Turbo公开训练配置](docs/TURBO_RECIPE.md)：固定G/D学习率1e-4、batch1、累积8、100轮重建预算。先读取固定训练清单换算实际G更新数，不再用2万步占位；GAN初始关闭。
 
 ```bash
-python -m decoder_speedup train configs/wan22/width.yaml \
-  --resume /absolute/path/to/checkpoint-00001000.pt
+# 只检查预算，不加载模型或训练。
+python -m decoder_speedup plan configs/wan22/width.yaml
+# 以下会正式训练；可在独立检查点结束本次运行，保留完整预算。
+python -m decoder_speedup train configs/wan22/width.yaml --stop-after-updates 1000
+# 正常续训，保留优化器、EMA、数据位置与W&B run。
+python -m decoder_speedup train "$RUN_DIR/config.resolved.yaml" --resume "$RUN_DIR/last.pt"
+# 重建指标稳定后，指定额外GAN更新预算，保留G状态进入第二阶段。
+python -m decoder_speedup train "$RUN_DIR/config.resolved.yaml" \
+  --resume "$RUN_DIR/last.pt" --start-gan-updates "$GAN_UPDATES"
 ```
 
-完整断点保存学生、特征投影、G/D 优化器、判别器、EMA、G/D 更新计数、随机状态和数据游标。配置/源码/权重/清单标识不一致会拒绝续训。训练日志每行区分 G 更新、D 更新和读入批次数。首版用固定学习率，没有隐藏调度器。
+`GAN_UPDATES`为显式正整数，不设未经验证的默认值。还可用 `--extend-reconstruction-updates` 延长尚未开始GAN的预算。阶段变更后使用输出目录的 `config.resolved.yaml` 续训。普通resume仍严格核对配方；仅显式变更入口放开对应预算字段，其他模型/数据/训练设置保持核验。
+
+完整断点保存学生、特征投影、G/D优化器、判别器、EMA、更新计数、随机状态、数据游标、训练计划与监控窗口。首版明确采用固定学习率，无warmup和衰减。详细来源、与Turbo的工程差异及阶段操作见 [TURBO_RECIPE.md](docs/TURBO_RECIPE.md)。
 
 训练输出包括解析后的配置、来源哈希、逐步 JSONL、断点、逐片段评测、最终 EMA 学生。恢复训练质量受初始化、结构、数据与预算共同影响；[方法与边界](docs/TRAINING.md) 说明与 Turbo 的关系。
 

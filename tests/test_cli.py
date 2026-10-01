@@ -68,3 +68,14 @@ def test_cli_training_export_evaluate(source, source_root, tmp_path, monkeypatch
     assert sdk[1][-1].summary["origin_training_run_id"] == sdk[1][0].id
     quality_steps = [row["progress/generator_updates"] for row in sdk[1][0].history if "quality/clips" in row]
     assert quality_steps == [1, 2]  # Final evaluation is reused, not computed/uploaded twice.
+    # A reviewed reconstruction checkpoint enters GAN with full state, then writes a resumable plan.
+    cli.main(['train', str(config_path), '--resume', str(tmp_path / 'run/checkpoint-00000001.pt'),
+              '--start-gan-updates', '2', '--stop-after-updates', '2'])
+    staged = torch.load(tmp_path / 'run/last.pt', weights_only=False)
+    assert staged['updates'] == 2 and staged['config']['training']['adversarial_updates'] == 2
+    assert staged['tracking']['run_id'] == sdk[1][0].id
+    assert not sdk[1][-1].summary['training_complete']
+    assert staged['training_plan']['changes'][-1]['event'] == 'start_gan'
+    cli.main(['train', str(tmp_path / 'run/config.resolved.yaml'), '--resume', str(tmp_path / 'run/last.pt')])
+    finished = torch.load(tmp_path / 'run/last.pt', weights_only=False)
+    assert finished['updates'] == 3 and sdk[1][-1].summary['training_complete']

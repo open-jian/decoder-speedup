@@ -15,6 +15,8 @@ from ..provenance import atomic_torch_save
 from ..formats import TRAINING_FORMAT, TRAINING_FORMATS
 from ..runtime import autocast, apply_layout
 from .losses import FeatureAlignment, PerceptualLoss, PatchDiscriminator, hinge_discriminator, adaptive_weight
+from .budget import resolve_budget
+from ..config import from_dict, positive_int
 
 
 def seed_all(seed):
@@ -41,6 +43,7 @@ def restore_rng(state):
 class Trainer:
     def __init__(self, student, teacher, stream, config, provenance=None, perceptual=None):
         config.validate()
+        self.training_plan = resolve_budget(config, len(stream.dataset))
         if config.runtime.weight_dtype != "fp32":
             raise ValueError("Training requires FP32 master weights; use precision=bf16 for AMP")
         if config.runtime.compile:
@@ -63,6 +66,12 @@ class Trainer:
         self.ema = {k: v.detach().clone() for k, v in self.student.state_dict().items()}
         self.updates = self.d_updates = self.microbatches = 0
         self.tracking_state = {}
+
+    def _create_discriminator(self):
+        t = self.config.training
+        self.discriminator = PatchDiscriminator(t.discriminator_channels).to(self.device)
+        self.d_optimizer = torch.optim.AdamW(self.discriminator.parameters(), lr=t.discriminator_lr,
+                                           betas=tuple(t.betas), weight_decay=t.weight_decay, eps=t.epsilon)
 
     def _batch(self):
         video = self.stream.next().to(self.device)
@@ -154,6 +163,7 @@ class Trainer:
     def save(self, path):
         # Saved only at complete G/D update boundaries; gradients need not be serialized.
         atomic_torch_save({"format": TRAINING_FORMAT, "config": self.config.to_dict(),
+                           "training_plan": self.training_plan,
                            "provenance": self.provenance, "tracking": self.tracking_state, "student": self.student.state_dict(),
                            "alignment": self.alignment.state_dict(), "optimizer": self.optimizer.state_dict(),
                            "discriminator": self.discriminator.state_dict() if self.discriminator else None,
@@ -161,12 +171,26 @@ class Trainer:
                            "ema": self.ema, "updates": self.updates, "d_updates": self.d_updates,
                            "microbatches": self.microbatches, "stream": self.stream.state_dict(), "rng": rng_state(self.device)}, path)
 
-    def resume(self, path):
+    def resume(self, path, *, start_gan_updates=None, extend_reconstruction_updates=None):
         # Training checkpoints contain Python/NumPy RNG state. Only load your own trusted files.
         state = torch.load(path, map_location="cpu", weights_only=False)
         if state.get("format") not in TRAINING_FORMATS:
             raise ValueError("Not a training checkpoint")
-        previous, current = copy.deepcopy(state["config"]), self.config.to_dict()
+        previous, current = from_dict(state["config"]).to_dict(), self.config.to_dict()
+        old_budget = {key: previous["training"][key] for key in ("reconstruction_updates", "adversarial_updates")}
+        if start_gan_updates is not None and extend_reconstruction_updates is not None:
+            raise ValueError("Choose either GAN transition or reconstruction extension")
+        changing_budget = start_gan_updates is not None or extend_reconstruction_updates is not None
+        if changing_budget:
+            value = start_gan_updates if start_gan_updates is not None else extend_reconstruction_updates
+            positive_int(value, "additional optimizer updates")
+            if state["d_updates"] or state["updates"] > old_budget["reconstruction_updates"]:
+                raise ValueError("Stage changes require a reconstruction checkpoint, before any GAN updates")
+            if state["updates"] == 0:
+                raise ValueError("Stage continuation requires a checkpoint with completed reconstruction updates")
+            for key in ("reconstruction_updates", "reconstruction_epochs", "adversarial_updates"):
+                previous["training"].pop(key, None)
+                current["training"].pop(key, None)
         # A relocated output directory is harmless. Hyperparameters/budgets stay strict.
         previous.pop("output", None)
         current.pop("output", None)
@@ -175,25 +199,57 @@ class Trainer:
         current.pop("wandb", None)
         if previous != current or state["provenance"] != self.provenance:
             raise ValueError("Resume requires matching config and model/data provenance; use init=checkpoint for a new recipe")
+        t = self.config.training
+        if start_gan_updates is not None:
+            t.reconstruction_updates, t.adversarial_updates = state["updates"], start_gan_updates
+            t.reconstruction_epochs = None
+        elif extend_reconstruction_updates is not None:
+            if old_budget["adversarial_updates"]:
+                raise ValueError("Cannot extend reconstruction when a GAN budget was already scheduled")
+            t.reconstruction_updates = old_budget["reconstruction_updates"] + extend_reconstruction_updates
+            t.adversarial_updates, t.reconstruction_epochs = 0, None
+        self.config.validate()
         self.student.load_state_dict(state["student"])
         self.alignment.load_state_dict(state["alignment"])
         self.optimizer.load_state_dict(state["optimizer"])
-        if self.discriminator:
+        if state["discriminator"] is not None:
+            if self.discriminator is None:
+                self._create_discriminator()
             self.discriminator.load_state_dict(state["discriminator"])
             self.d_optimizer.load_state_dict(state["d_optimizer"])
+        else:
+            self.discriminator = self.d_optimizer = None
         self.ema = {k: v.to(self.device) for k, v in state["ema"].items()}
         self.updates, self.d_updates, self.microbatches = state["updates"], state["d_updates"], state["microbatches"]
         self.stream.load_state_dict(state["stream"])
         restore_rng(state["rng"])
+        # A newly enabled D is initialized once, from the checkpoint RNG state.
+        # Subsequent resumes restore its weights/optimizer and do not reinitialize it.
+        if t.adversarial_updates and self.discriminator is None:
+            self._create_discriminator()
         self.tracking_state = dict(state.get("tracking", {}))
+        self.training_plan = copy.deepcopy(state.get("training_plan", self.training_plan))
+        if changing_budget:
+            self.training_plan.setdefault("changes", []).append({
+                "event": "start_gan" if start_gan_updates is not None else "extend_reconstruction",
+                "at_generator_update": self.updates, "previous_budget": old_budget,
+                "reconstruction_updates": t.reconstruction_updates, "adversarial_updates": t.adversarial_updates,
+            })
+            self.training_plan.update(reconstruction_updates=t.reconstruction_updates, adversarial_updates=t.adversarial_updates)
 
-    def fit(self, output, evaluate=None, tracker=None):
+    def fit(self, output, evaluate=None, tracker=None, stop_after_updates=None):
         output = Path(output)
         output.mkdir(parents=True, exist_ok=True)
         t = self.config.training
+        total = t.reconstruction_updates + t.adversarial_updates
+        if stop_after_updates is not None:
+            positive_int(stop_after_updates, "stop_after_updates")
+            if stop_after_updates <= self.updates:
+                raise ValueError("stop_after_updates must exceed the completed generator update count")
+        stop_at = min(total, stop_after_updates) if stop_after_updates is not None else total
         last_evaluation = None
         with (output / "train.jsonl").open("a", buffering=1) as log:
-            while self.updates < t.reconstruction_updates + t.adversarial_updates:
+            while self.updates < stop_at:
                 started = time.perf_counter()
                 metrics = self.step()
                 metrics["update_seconds"] = time.perf_counter() - started

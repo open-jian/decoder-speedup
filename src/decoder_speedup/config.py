@@ -80,11 +80,13 @@ class LossConfig:
 @dataclass
 class TrainConfig:
     seed: int = 42
-    # Example budgets, NOT the unpublished authors' final recipe.
-    reconstruction_updates: int = 20000
+    # Legacy update-based defaults; the main preset explicitly uses Turbo's epoch budget.
+    reconstruction_updates: int | None = 20000
+    reconstruction_epochs: int | None = None
     adversarial_updates: int = 0
     accumulation: int = 1
     discriminator_updates: int = 1
+    lr_schedule: str = "constant"
     learning_rate: float = 1e-4
     discriminator_lr: float = 1e-4
     betas: list[float] = field(default_factory=lambda: [0.9, 0.95])
@@ -160,10 +162,18 @@ class Config:
         if (self.data.frames - 1) % 4 or self.data.height % 16 or self.data.width % 16:
             raise ValueError("Wan clips need T=1+4k and H,W divisible by 16")
         t = self.training
+        if t.lr_schedule != "constant":
+            raise ValueError("This recipe implements constant LR, with no warmup or decay")
+        if t.reconstruction_epochs is not None:
+            positive_int(t.reconstruction_epochs, "training.reconstruction_epochs")
+            if t.reconstruction_updates is not None:
+                raise ValueError("Set reconstruction_updates to null when using reconstruction_epochs")
         for name in ("reconstruction_updates", "adversarial_updates"):
+            if name == "reconstruction_updates" and t.reconstruction_epochs is not None:
+                continue
             if type(getattr(t, name)) is not int or getattr(t, name) < 0:
                 raise ValueError(f"training.{name} must be a nonnegative integer")
-        if t.reconstruction_updates + t.adversarial_updates < 1:
+        if t.reconstruction_epochs is None and t.reconstruction_updates + t.adversarial_updates < 1:
             raise ValueError("At least one optimizer update is required")
         for name in ("accumulation", "discriminator_updates", "save_every", "eval_every", "eval_clips", "discriminator_channels"):
             positive_int(getattr(t, name), f"training.{name}")

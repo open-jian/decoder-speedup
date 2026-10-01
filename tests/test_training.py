@@ -19,7 +19,7 @@ class SyntheticVideos:
         return torch.randn(3, 5, 16, 16, generator=generator).tanh()
 
 
-def fixture(source):
+def fixture(source, reconstruction_updates=1, adversarial_updates=2):
     seed_all(17)
     teacher = tiny_teacher(source)
     @torch.no_grad()
@@ -32,8 +32,8 @@ def fixture(source):
     cfg.runtime.device, cfg.runtime.precision = "cpu", "fp32"
     cfg.data.frames, cfg.data.height, cfg.data.width = 5, 16, 16
     cfg.loss.lpips = 0
-    cfg.training.reconstruction_updates = 1
-    cfg.training.adversarial_updates = 2
+    cfg.training.reconstruction_updates = reconstruction_updates
+    cfg.training.adversarial_updates = adversarial_updates
     cfg.training.accumulation = 2
     cfg.training.discriminator_updates = 2
     cfg.training.discriminator_channels = 2

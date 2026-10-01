@@ -31,16 +31,20 @@ loss:
   adaptive_gan: true
 training:
   seed: 42
-  # Starter values to edit; authors' final Wan width-recovery recipe is not known.
-  reconstruction_updates: 20000
+  # Turbo-VAED train.sh (6bd3adf): 100 epochs, batch 1, accumulation 8.
+  # Resolve against the frozen training manifest; 100 epochs is an upper budget,
+  # not a claim that our student converges at this point. See docs/TURBO_RECIPE.md.
+  reconstruction_updates: null
+  reconstruction_epochs: 100
   adversarial_updates: 0
-  accumulation: 1
+  accumulation: 8
   discriminator_updates: 1
+  lr_schedule: constant  # Turbo: no warmup and no LR decay.
   learning_rate: 1.0e-4
   discriminator_lr: 1.0e-4
   betas: [0.9, 0.95]
   weight_decay: 1.0e-4
-  epsilon: 1.0e-8
+  epsilon: 1.0e-15
   ema_decay: 0.999
   gradient_clip: 1.0
   save_every: 1000
@@ -60,7 +64,7 @@ wandb:
   mode: online
   group: wan22-width-recovery
   # Model, width recipe, initialization, training recipe and purpose tags are automatic.
-  tags: [data:vidgen-1m]
+  tags: [data:vidgen-1m, schedule:turbo-public]
   log_every: 50  # Absolute G updates; aggregate all updates, not one sampled loss.
   system_sample_seconds: 30  # Only hardware monitoring uses wall-clock time.
 output: ${RUN_DIR}

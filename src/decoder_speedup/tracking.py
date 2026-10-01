@@ -33,6 +33,7 @@ def public_config(config, provenance):
         "source_commit": provenance.get("source", {}).get("commit"),
         "source_files": provenance.get("source", {}).get("files", {}),
         "manifests": provenance.get("data", {}),
+        "training_plan": provenance.get("training_plan", {}),
     }
 
 
@@ -108,6 +109,8 @@ class WandbTracker:
             for pattern in ("train/*", "gan/*", "optim/*", "quality/*", "timing/*", "progress/*", "monitor/*"):
                 self.run.define_metric(pattern, step_metric="progress/generator_updates")
             self.run.summary.update({"monitoring_schema": 2, "session_status": "running"})
+            if job_type == "decoder-recovery":
+                self.run.summary["training_complete"] = False
             write_json({key: self.state[key] for key in ("run_id", "entity", "project", "mode")} |
                        {"url": self.run.url}, self.output / "wandb-run.json")
         except BaseException:
@@ -257,7 +260,10 @@ class WandbTracker:
 
     def mark_complete(self, trainer):
         if self.run is not None:
-            self.run.summary.update({"training_complete": True,
+            t = self.config.training
+            complete = trainer.updates >= t.reconstruction_updates + t.adversarial_updates
+            self.run.summary.update({"training_complete": complete,
+                                     "session_stop_reason": "budget_reached" if complete else "review",
                                      "generator_updates": trainer.updates,
                                      "discriminator_updates": trainer.d_updates,
                                      "microbatches": trainer.microbatches})

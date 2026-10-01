@@ -7,7 +7,7 @@ import os
 import time
 import torch
 import yaml
-from .config import load_config, from_dict, RuntimeConfig, WidthConfig
+from .config import load_config, from_dict, RuntimeConfig, WidthConfig, positive_int
 from .formats import TRAINING_FORMATS
 from .data import VideoDataset, BatchStream, assert_disjoint, make_manifests
 from .models.wan22.adapter import load_source, build_student, build_decoder, WanTeacher
@@ -15,6 +15,7 @@ from .provenance import sha256, source_identity, write_json, framework_identity
 from .export import export_student, load_student, initialize_checkpoint
 from .runtime import apply_layout, inference_decoder
 from .training.trainer import Trainer, seed_all
+from .training.budget import resolve_budget
 from .training.losses import PerceptualLoss
 from .evaluation import evaluate_dataset, benchmark_decoder
 from .tracking import WandbTracker, check_connection
@@ -46,6 +47,8 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     inspect = commands.add_parser("inspect", help="Validate structure and count parameters without loading weights")
     inspect.add_argument("config")
+    plan = commands.add_parser("plan", help="Resolve epoch budget from a fixed manifest; no model or training")
+    plan.add_argument("config")
     manifest = commands.add_parser("manifest", help="Freeze source-disjoint train/validation JSONL")
     manifest.add_argument("--root", required=True)
     manifest.add_argument("--output", required=True)
@@ -56,6 +59,10 @@ def main(argv=None):
     train = commands.add_parser("train")
     train.add_argument("config")
     train.add_argument("--resume", help="Trusted full training checkpoint; config must match")
+    continuation = train.add_mutually_exclusive_group()
+    continuation.add_argument("--start-gan-updates", type=int, help="Resume reconstruction state and run this many additional GAN G updates")
+    continuation.add_argument("--extend-reconstruction-updates", type=int, help="Resume and add this many G updates to the existing reconstruction budget")
+    train.add_argument("--stop-after-updates", type=int, help="Stop this invocation at an absolute G update for review, preserving the full budget")
     export = commands.add_parser("export")
     export.add_argument("checkpoint", help="Trusted training checkpoint")
     export.add_argument("--source", required=True)
@@ -101,6 +108,10 @@ def main(argv=None):
         print(str(Path(args.output).resolve()))
         return
     cfg = load_config(args.config)
+    if args.command == "plan":
+        dataset = VideoDataset(cfg.data, cfg.data.train_manifest)
+        print(json.dumps(dict(resolve_budget(cfg, len(dataset)), manifest=dataset.identity), indent=2))
+        return
     if args.command == "inspect":
         source = load_source(cfg.model.source)
         with torch.device("meta"):
@@ -115,6 +126,11 @@ def main(argv=None):
     require_single_process()
     seed_all(cfg.training.seed)
     if args.command == "train":
+        for name in ("start_gan_updates", "extend_reconstruction_updates", "stop_after_updates"):
+            if getattr(args, name) is not None:
+                positive_int(getattr(args, name), name)
+        if (args.start_gan_updates is not None or args.extend_reconstruction_updates is not None) and not args.resume:
+            raise ValueError("GAN transition / budget extension requires --resume")
         if cfg.runtime.weight_dtype != "fp32":
             raise ValueError("Training requires weight_dtype=fp32")
         if cfg.runtime.compile:
@@ -130,14 +146,18 @@ def main(argv=None):
         stream = BatchStream(train_data, cfg.data.batch_size, cfg.training.seed)
         trainer = Trainer(student, teacher, stream, cfg, provenance)
         if args.resume:
-            trainer.resume(args.resume)
+            trainer.resume(args.resume, start_gan_updates=args.start_gan_updates,
+                           extend_reconstruction_updates=args.extend_reconstruction_updates)
+        if args.stop_after_updates is not None and args.stop_after_updates <= trainer.updates:
+            raise ValueError("stop_after_updates must exceed the completed generator update count")
         output.mkdir(parents=True, exist_ok=True)
         (output / "config.resolved.yaml").write_text(yaml.safe_dump(cfg.to_dict(), sort_keys=False))
         write_json(provenance, output / "provenance.json")
+        write_json(trainer.training_plan, output / "training-plan.json")
         evaluate = lambda model: evaluate_dataset(model, teacher, val_data, cfg.runtime, cfg.training.eval_clips, trainer.perceptual)
-        with WandbTracker(cfg, output, provenance, trainer.tracking_state) as tracker:
+        with WandbTracker(cfg, output, dict(provenance, training_plan=trainer.training_plan), trainer.tracking_state) as tracker:
             trainer.tracking_state = tracker.state
-            result = trainer.fit(output, evaluate, tracker)
+            result = trainer.fit(output, evaluate, tracker, stop_after_updates=args.stop_after_updates)
             # Always validate at the end, even for budgets shorter than eval_every.
             with trainer.ema_weights() as model:
                 if result is None:

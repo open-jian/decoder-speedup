@@ -7,3 +7,4 @@
 源码改变后运行必要的 pytest；外部源码接入测试需要 WAN22_SOURCE。
 W&B主配置为miaoyin-uta/vae-speedup；使用现有登录，不将key写入代码或配置。源码同步必须排除.secrets目录。连接检查不等于授权正式训练。
 训练指标按绝对G更新次数汇总记录，默认每50次更新；不得用时间触发训练日志导致采样步数漂移。只有SDK系统资源指标按30秒采样。分组、标签和指标口径见docs/MONITORING.md。
+用户已选择Turbo公开train.sh（6bd3adf）的训练配置方式：G/D固定1e-4、batch1×累积8、100轮重建上限、eps1e-15；不要混入论文batch32或作者另一次实验batch16。阶段切换以验证结果为依据，用显式完整状态续训入口；不得自行启动正式训练。详见docs/TURBO_RECIPE.md。

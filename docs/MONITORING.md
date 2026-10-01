@@ -9,7 +9,7 @@
 | Project | `vae-speedup` | 放所有解码器加速实验，以后加其他模型也用这个项目 |
 | Group | `wan22-width-recovery` | 同一研究问题的一组实验；后续减层、算子替换另开 group |
 | Job type | `decoder-recovery` / `quality-eval` / `decode-benchmark` / `connection-check` | 区分训练、独立评测、独立测速、连接检查 |
-| Run | 一次训练计划 | 在线断点续训用同一 ID；改宽度、损失或训练预算建立新 run |
+| Run | 一次训练计划 | 在线断点续训用同一 ID；改宽度或损失建立新run；显式阶段切换/预算延长可保留同一run并记录历史 |
 | Name | `wan22-w512-512-256-64-32-teacher_prefix-rec-s42-<id>` | 看得出模型、宽度、初始化、训练阶段、种子；最后的 ID 防重名 |
 
 自动标签：`model:wan22`、`method:width-only`、`width:amd-v1-v3`、`init:teacher_prefix`、`recipe:rec`、`purpose:decoder-recovery`。主配置另加 `data:vidgen-1m`。
@@ -73,7 +73,7 @@
 ## 恢复与异常
 
 - 完整checkpoint保存run ID、未上传窗口和各画质指标的历史最优值；例如第37步保存，恢复到第50步时仍汇总第1—50步。
-- 在线恢复沿用run；离线SDK不支持原地恢复，因此建立带原ID标记的新日志段。日志间隔可调，训练配方依旧严格校验。
+- 在线恢复沿用run；显式GAN切换/重建预算延长保留同一run并更新训练计划，详见TURBO_RECIPE.md；离线SDK不支持原地恢复，因此建立带原ID标记的新日志段。日志间隔可调，训练配方依旧严格校验。
 - 从旧断点重跑时云端已有的后续数据不会自动删除；需要干净对照时，使用学生权重开启新的实验。
 - 可捕获异常写入失败类型并尝试提交已完成更新；断电、SIGKILL等无法保证最终上传，本地断点与日志用于恢复。
 - 日志上传失败不会被悄悄忽略；本地原始指标保留。敏感文件、key、原视频文件名、模型权重不上传。
