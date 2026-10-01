@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 import os
 import re
+import math
 import yaml
 
 ORIGINAL_WIDTHS = [1024, 1024, 1024, 512, 256]
@@ -113,9 +114,10 @@ class WandbConfig:
     project: str = "decoder-speedup"
     mode: str = "online"
     name: str = ""
-    group: str = "wan22-width"
+    group: str = "wan22-width-recovery"
     tags: list[str] = field(default_factory=list)
-    log_every: int = 10
+    log_every: int = 50
+    system_sample_seconds: float = 30.0
 
 
 @dataclass
@@ -138,6 +140,9 @@ class Config:
         if type(w.enabled) is not bool or w.mode not in {"online", "offline", "disabled"}:
             raise ValueError("wandb requires boolean enabled and mode online/offline/disabled")
         positive_int(w.log_every, "wandb.log_every")
+        value = w.system_sample_seconds
+        if type(value) not in (int, float) or not math.isfinite(value) or value < 1:
+            raise ValueError("wandb.system_sample_seconds must be finite and >=1")
         if w.enabled and (not w.entity or not w.project or "/" in w.entity or "/" in w.project):
             raise ValueError("Set wandb.entity and wandb.project separately")
         if not isinstance(w.tags, list) or not all(isinstance(tag, str) for tag in w.tags):

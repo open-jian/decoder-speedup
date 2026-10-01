@@ -58,7 +58,9 @@ wandb:
   entity: miaoyin-uta
   project: vae-speedup
   mode: online
-  group: wan22-amd-width
-  tags: [wan22, amd-width, width-only]
-  log_every: 10
+  group: wan22-width-recovery
+  # Model, width recipe, initialization, training recipe and purpose tags are automatic.
+  tags: [data:vidgen-1m]
+  log_every: 50  # Absolute G updates; aggregate all updates, not one sampled loss.
+  system_sample_seconds: 30  # Only hardware monitoring uses wall-clock time.
 output: ${RUN_DIR}

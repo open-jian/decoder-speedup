@@ -114,7 +114,7 @@ python -m decoder_speedup train configs/wan22/width.yaml \
 
 ## W&B 训练监控
 
-主配置已启用 [miaoyin-uta/vae-speedup](https://wandb.ai/miaoyin-uta/vae-speedup)。直接沿用已有 `~/.netrc` 登录或 `WANDB_API_KEY` 环境变量，配置文件中不放密钥。项目使用 W&B 的训练指标记录；Weave 的 OpenAI 请求追踪示例不用于这里的VAE训练。
+主配置已启用 [miaoyin-uta/vae-speedup](https://wandb.ai/miaoyin-uta/vae-speedup)，沿用已有登录或 `WANDB_API_KEY`，配置中不放密钥。
 
 ```yaml
 wandb:
@@ -122,31 +122,24 @@ wandb:
   entity: miaoyin-uta
   project: vae-speedup
   mode: online
-  group: wan22-amd-width
-  tags: [wan22, amd-width, width-only]
-  log_every: 10
+  group: wan22-width-recovery
+  tags: [data:vidgen-1m]
+  log_every: 50
+  system_sample_seconds: 30
 ```
 
-正式训练后自动记录：
+- 固定每50次G参数更新合并上传损失均值/最大值、梯度、学习率、进度和训练耗时；首步、阶段边界和结束额外记录。训练曲线只按实际更新次数，不由时间触发。
+- 画质默认每1000步验证，记录老师/EMA学生PSNR、SSIM、LPIPS及差值；GPU等系统指标每30秒采样。
+- 模型、缩宽方案、初始化、训练阶段和任务用途自动生成标签；数值超参数、数据哈希留在config。
+- 分为 `train`、`gan`、`quality`、`optim`、`progress`、`timing`、`monitor`；独立测速用 `decode`。
+- 在线续训保留run ID和未上报窗口。本地每步JSONL继续保留；默认不上传视频、权重、源码或控制台输出。
+- `evaluate`、`benchmark` 完成后分别建立独立评测/测速run，通过学生SHA256和来源训练run关联。SDK在测速结束后才启动。
 
-- `train/*`：总损失、L1、LPIPS、特征MSE、GAN损失/权重，以及当前训练阶段。
-- `validation/*`：老师和学生的PSNR、SSIM、启用时的LPIPS，以及学生相对老师的差值；按原有评测间隔上传。
-- `optim/*`：G/D学习率；`timing/*`：每次参数更新的训练循环墙钟时间（不作为解码延迟基准）。
-- `progress/*`：G/D实际更新次数、读取批数、epoch、样本游标和预算完成比例；SDK同时记录系统资源指标。
-
-曲线横轴是实际G更新次数。默认每10次更新记录一条训练值，首步、阶段切换和末步也会记录；这是对应更新的数值，不是10步滑动平均。`wandb-run.json` 保存run链接，完整训练断点保存run ID；在线续训使用同一run。W&B内部日志序号自动递增，所以验证和训练可以落在相同G更新位置。若从较早断点重跑，原有云端记录保留，不会自动删除回退区间。
-
-运行正常或异常退出都会结束W&B会话。默认上传标量、必要实验配置和来源标识，不上传视频、权重、源码、终端输出或私有凭据。`wandb.enabled: false` 关闭监控；`mode: offline` 只保存本地日志。SDK不支持离线原地续接，离线恢复会建立带原run ID标记的新日志段，不能混称在线续训。
-
-可以单独检查连接，不加载模型也不训练：
+分组规则、指标含义、窗口边界和性能控制详见 [监控体系](docs/MONITORING.md)。`wandb.enabled: false` 禁用，`mode: offline` 只记录本地SDK日志。可单独检查连接，不加载模型或训练：
 
 ```bash
 decoder-speedup wandb-check --entity miaoyin-uta --project vae-speedup
 ```
-
-这会建立一条明确标记为 `connection-check` 的记录，仅上传连接状态和零训练更新。接入已在erebus的W&B SDK 0.23.1验证。
-
-参考SDK的 [run初始化](https://docs.wandb.ai/models/ref/python/functions) 和 [Run记录/自定义指标](https://docs.wandb.ai/ref/python/experiments/run/) 接口。
 
 ## 评测和导出
 

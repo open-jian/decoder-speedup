@@ -103,11 +103,12 @@ class Trainer:
             (loss / t.accumulation).backward()
             for key, value in {"loss": loss, "l1": l1, "lpips": perceptual, "feature": feature,
                                "g_gan": g_loss, "gan_weight": gan_weight}.items():
-                metrics[key] = metrics.get(key, 0.0) + float(torch.as_tensor(value).detach()) / t.accumulation
+                # Keep detached scalars on device; transfer them together once per update.
+                metrics[key] = metrics.get(key, 0.0) + torch.as_tensor(value, device=self.device).detach() / t.accumulation
             if gan_active:
                 d_batches.append((target.detach(), predicted.detach()))
             self.microbatches += 1
-        torch.nn.utils.clip_grad_norm_(self.parameters, t.gradient_clip if t.gradient_clip else float("inf"), error_if_nonfinite=True)
+        metrics["g_grad_norm"] = torch.nn.utils.clip_grad_norm_(self.parameters, t.gradient_clip if t.gradient_clip else float("inf"), error_if_nonfinite=True).detach()
         self.optimizer.step()
         self.updates += 1
         with torch.no_grad():
@@ -127,11 +128,14 @@ class Trainer:
                     if not torch.isfinite(loss_d):
                         raise FloatingPointError("Nonfinite discriminator loss")
                     (loss_d / len(d_batches)).backward()
-                    d_metric += float(loss_d.detach()) / len(d_batches)
-                torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), t.gradient_clip if t.gradient_clip else float("inf"), error_if_nonfinite=True)
+                    d_metric = d_metric + loss_d.detach() / len(d_batches)
+                d_norm = torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), t.gradient_clip if t.gradient_clip else float("inf"), error_if_nonfinite=True)
                 self.d_optimizer.step()
                 self.d_updates += 1
-                metrics["d_loss"] = d_metric
+                metrics["d_loss"] = metrics.get("d_loss", 0.0) + d_metric / t.discriminator_updates
+                metrics["d_grad_norm"] = metrics.get("d_grad_norm", 0.0) + d_norm.detach() / t.discriminator_updates
+        values = torch.stack([value.float() for value in metrics.values()]).cpu().tolist()
+        metrics = dict(zip(metrics, values))
         return {"generator_updates": self.updates, "discriminator_updates": self.d_updates,
                 "microbatches": self.microbatches, "stage": "adversarial" if gan_active else "reconstruction", **metrics}
 
@@ -187,21 +191,29 @@ class Trainer:
         output = Path(output)
         output.mkdir(parents=True, exist_ok=True)
         t = self.config.training
+        last_evaluation = None
         with (output / "train.jsonl").open("a", buffering=1) as log:
             while self.updates < t.reconstruction_updates + t.adversarial_updates:
                 started = time.perf_counter()
                 metrics = self.step()
                 metrics["update_seconds"] = time.perf_counter() - started
                 log.write(json.dumps(metrics) + "\n")
-                print(json.dumps(metrics), flush=True)
+                if self.updates % self.config.wandb.log_every == 0 or self.updates in {
+                    1, t.reconstruction_updates, t.reconstruction_updates + 1,
+                    t.reconstruction_updates + t.adversarial_updates,
+                }:
+                    print(json.dumps(metrics), flush=True)
                 if tracker is not None:
                     tracker.log_training(metrics, self)
                 if evaluate and self.updates % t.eval_every == 0:
+                    validation_started = time.perf_counter()
                     with self.ema_weights() as model:
                         result = evaluate(model)
+                    last_evaluation = (self.updates, result)
                     (output / f"eval-{self.updates:08d}.json").write_text(json.dumps(result, indent=2) + "\n")
                     if tracker is not None:
-                        tracker.log_validation(result, self.updates)
+                        tracker.log_validation(result, self.updates, seconds=time.perf_counter() - validation_started)
                 if self.updates % t.save_every == 0 or self.updates == t.reconstruction_updates:
                     self.save(output / f"checkpoint-{self.updates:08d}.pt")
             self.save(output / "last.pt")
+        return last_evaluation[1] if last_evaluation and last_evaluation[0] == self.updates else None

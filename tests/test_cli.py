@@ -7,11 +7,13 @@ from decoder_speedup import cli
 from decoder_speedup.provenance import source_identity
 from decoder_speedup.export import load_student
 from test_training import fixture
+from test_tracking import sdk, tracked_config
 
 
-def test_cli_training_export_evaluate(source, source_root, tmp_path, monkeypatch):
+def test_cli_training_export_evaluate(source, source_root, tmp_path, monkeypatch, sdk):
     setup = fixture(source)
     cfg = setup.config
+    cfg.wandb = tracked_config().wandb
     cfg.training.accumulation = 1
     cfg.training.adversarial_updates = 1
     cfg.training.eval_every = 1
@@ -51,8 +53,18 @@ def test_cli_training_export_evaluate(source, source_root, tmp_path, monkeypatch
     quality = json.loads(quality_path.read_text())
     assert quality["clips"] == 1 and set(quality["means"]) == {"teacher", "student"}
     timing_path = tmp_path / "timing.json"
+    original_benchmark = cli.benchmark_decoder
+    def checked_benchmark(*args, **kwargs):
+        assert len(sdk[0]) == 2  # No benchmark W&B process during any of the three timers.
+        return original_benchmark(*args, **kwargs)
+    monkeypatch.setattr(cli, "benchmark_decoder", checked_benchmark)
     cli.main(["benchmark", str(config_path), "--student", str(exported), "--output", str(timing_path),
               "--warmup", "1", "--repeats", "3"])
     timing = json.loads(timing_path.read_text())
     assert len(timing["native_teacher"]["samples_ms"]) == 3
     assert timing["runtime_student"]["speedup_vs_native"] > 0
+    assert [call["job_type"] for call in sdk[0]] == ["decoder-recovery", "quality-eval", "decode-benchmark"]
+    assert sdk[1][-1].history[0]["decode/runtime_student_speedup_vs_native"] > 0
+    assert sdk[1][-1].summary["origin_training_run_id"] == sdk[1][0].id
+    quality_steps = [row["progress/generator_updates"] for row in sdk[1][0].history if "quality/clips" in row]
+    assert quality_steps == [1, 2]  # Final evaluation is reused, not computed/uploaded twice.

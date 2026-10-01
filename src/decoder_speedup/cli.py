@@ -1,11 +1,13 @@
 from __future__ import annotations
 import argparse
+import copy
 import json
 from pathlib import Path
 import os
+import time
 import torch
 import yaml
-from .config import load_config, from_dict, RuntimeConfig
+from .config import load_config, from_dict, RuntimeConfig, WidthConfig
 from .formats import TRAINING_FORMATS
 from .data import VideoDataset, BatchStream, assert_disjoint, make_manifests
 from .models.wan22.adapter import load_source, build_student, build_decoder, WanTeacher
@@ -93,7 +95,8 @@ def main(argv=None):
         weights = checkpoint["student"] if args.raw else checkpoint["ema"]
         student.load_state_dict(weights)
         provenance = dict(checkpoint["provenance"], generator_updates=checkpoint["updates"],
-                          discriminator_updates=checkpoint["d_updates"], weights="raw" if args.raw else "ema")
+                          discriminator_updates=checkpoint["d_updates"], weights="raw" if args.raw else "ema",
+                          wandb_run_id=checkpoint.get("tracking", {}).get("run_id"))
         export_student(student, args.output, args.source, provenance)
         print(str(Path(args.output).resolve()))
         return
@@ -134,14 +137,17 @@ def main(argv=None):
         evaluate = lambda model: evaluate_dataset(model, teacher, val_data, cfg.runtime, cfg.training.eval_clips, trainer.perceptual)
         with WandbTracker(cfg, output, provenance, trainer.tracking_state) as tracker:
             trainer.tracking_state = tracker.state
-            trainer.fit(output, evaluate, tracker)
+            result = trainer.fit(output, evaluate, tracker)
             # Always validate at the end, even for budgets shorter than eval_every.
             with trainer.ema_weights() as model:
-                result = evaluate(model)
+                if result is None:
+                    started = time.perf_counter()
+                    result = evaluate(model)
+                    tracker.log_validation(result, trainer.updates, seconds=time.perf_counter() - started)
                 write_json(result, output / "evaluation-final.json")
-                tracker.log_validation(result, trainer.updates)
                 export_student(model, output / "student.pt", cfg.model.source,
-                               dict(provenance, generator_updates=trainer.updates, discriminator_updates=trainer.d_updates, weights="ema"))
+                               dict(provenance, generator_updates=trainer.updates, discriminator_updates=trainer.d_updates,
+                                    weights="ema", wandb_run_id=tracker.state.get("run_id")))
             tracker.mark_complete(trainer)
         return
     source = load_source(cfg.model.source)
@@ -174,4 +180,18 @@ def main(argv=None):
     result["student_provenance"] = artifact.get("provenance", {})
     result["source"] = source_identity(cfg.model.source)
     write_json(result, args.output)
+    # Initialize monitoring only AFTER evaluation/timed decoding. Preserve the JSON even if upload fails.
+    if cfg.wandb.enabled and cfg.wandb.mode != "disabled":
+        monitored = copy.deepcopy(cfg)
+        monitored.width = WidthConfig(**artifact["width"])
+        provenance = dict(artifact.get("provenance", {}), student_sha256=sha256(args.student), source=result["source"])
+        if args.command == "evaluate":
+            provenance["data"] = {"val": result["manifest"]}
+        with WandbTracker(monitored, Path(args.output).with_suffix(".tracking"), provenance,
+                          job_type="quality-eval" if args.command == "evaluate" else "decode-benchmark") as tracker:
+            if args.command == "evaluate":
+                tracker.log_validation(result, provenance.get("generator_updates", 0), weights=provenance.get("weights", "exported"))
+            else:
+                tracker.log_benchmark(result)
+            tracker.run.summary["origin_training_run_id"] = provenance.get("wandb_run_id") or "unknown"
     print(json.dumps({"output": str(Path(args.output).resolve())}))
