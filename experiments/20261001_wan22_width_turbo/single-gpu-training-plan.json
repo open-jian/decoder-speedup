@@ -1,0 +1,12 @@
+{
+  "effective_batch": 8,
+  "training_rows": 10000,
+  "world_size": 1,
+  "lr_schedule": "constant",
+  "basis": "epochs",
+  "reconstruction_epochs": 100,
+  "requested_reconstruction_samples": 1000000,
+  "rounded_extra_samples": 0,
+  "reconstruction_updates": 125000,
+  "adversarial_updates": 0
+}

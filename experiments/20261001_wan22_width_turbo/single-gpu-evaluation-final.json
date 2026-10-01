@@ -1,0 +1,253 @@
+{
+  "clips": 16,
+  "aggregation": "mean of per-clip metrics",
+  "runtime": {
+    "device": "cuda:0",
+    "precision": "bf16",
+    "weight_dtype": "fp32",
+    "channels_last": false,
+    "compile": false
+  },
+  "manifest": {
+    "manifest_sha256": "2f1116b6bd0e6a1db0e3e9631e16f1499175c9da5e772ccae0723f908dcf0096",
+    "rows": 256
+  },
+  "means": {
+    "teacher": {
+      "psnr_db": 34.20365425721827,
+      "ssim": 0.9451652653515339,
+      "lpips": 0.03676633123541251
+    },
+    "student": {
+      "psnr_db": 11.152853768928654,
+      "ssim": 0.25896547408774495,
+      "lpips": 0.8169957511126995
+    }
+  },
+  "per_clip": [
+    {
+      "path": "videos/VidGen_video_1826/a36qoBLPyxs-Scene-0045.mp4",
+      "source_id": "a36qoBLPyxs",
+      "teacher": {
+        "psnr_db": 33.08412176251112,
+        "ssim": 0.9560452103614807,
+        "lpips": 0.03720412030816078
+      },
+      "student": {
+        "psnr_db": 11.89429574645552,
+        "ssim": 0.2842964231967926,
+        "lpips": 0.8154467344284058
+      }
+    },
+    {
+      "path": "videos/VidGen_video_1178/I3Tkce_Xau0-Scene-0012.mp4",
+      "source_id": "I3Tkce_Xau0",
+      "teacher": {
+        "psnr_db": 39.74931761277582,
+        "ssim": 0.9776046872138977,
+        "lpips": 0.022160949185490608
+      },
+      "student": {
+        "psnr_db": 10.18064871506246,
+        "ssim": 0.2508558928966522,
+        "lpips": 0.9053114652633667
+      }
+    },
+    {
+      "path": "videos/VidGen_video_1869/dpANH1fayi4-Scene-0028.mp4",
+      "source_id": "dpANH1fayi4",
+      "teacher": {
+        "psnr_db": 28.45245331475653,
+        "ssim": 0.7906473278999329,
+        "lpips": 0.11164132505655289
+      },
+      "student": {
+        "psnr_db": 12.889338856482372,
+        "ssim": 0.23255805671215057,
+        "lpips": 0.8270092010498047
+      }
+    },
+    {
+      "path": "videos/VidGen_video_1717/bLiJLiKxhJo-Scene-0023.mp4",
+      "source_id": "bLiJLiKxhJo",
+      "teacher": {
+        "psnr_db": 27.482913501956304,
+        "ssim": 0.9016484022140503,
+        "lpips": 0.0379226952791214
+      },
+      "student": {
+        "psnr_db": 7.546177399737459,
+        "ssim": 0.044990427792072296,
+        "lpips": 0.7806909680366516
+      }
+    },
+    {
+      "path": "videos/VidGen_video_1645/Xemn2v2QXUI-Scene-0055.mp4",
+      "source_id": "Xemn2v2QXUI",
+      "teacher": {
+        "psnr_db": 38.33989481510598,
+        "ssim": 0.9814905524253845,
+        "lpips": 0.012997300364077091
+      },
+      "student": {
+        "psnr_db": 10.368252506442555,
+        "ssim": 0.22652986645698547,
+        "lpips": 0.788124680519104
+      }
+    },
+    {
+      "path": "videos/VidGen_video_1192/pPKNTzSrUCE-Scene-0036.mp4",
+      "source_id": "pPKNTzSrUCE",
+      "teacher": {
+        "psnr_db": 29.100948699879467,
+        "ssim": 0.923278272151947,
+        "lpips": 0.03692556172609329
+      },
+      "student": {
+        "psnr_db": 10.704653976866576,
+        "ssim": 0.18793118000030518,
+        "lpips": 0.7561364769935608
+      }
+    },
+    {
+      "path": "videos/VidGen_video_173/OTbb7h803tk-Scene-0015.mp4",
+      "source_id": "OTbb7h803tk",
+      "teacher": {
+        "psnr_db": 39.82446928732689,
+        "ssim": 0.9712309241294861,
+        "lpips": 0.02789541706442833
+      },
+      "student": {
+        "psnr_db": 12.833637426388794,
+        "ssim": 0.348146915435791,
+        "lpips": 0.7642437219619751
+      }
+    },
+    {
+      "path": "videos/VidGen_video_829/FWSXr19laaU-Scene-0095.mp4",
+      "source_id": "FWSXr19laaU",
+      "teacher": {
+        "psnr_db": 34.53756298692149,
+        "ssim": 0.9579194188117981,
+        "lpips": 0.03515230864286423
+      },
+      "student": {
+        "psnr_db": 11.76088421315675,
+        "ssim": 0.2737186849117279,
+        "lpips": 0.7825663089752197
+      }
+    },
+    {
+      "path": "videos/VidGen_video_1320/skYatVjFTlY-Scene-0017.mp4",
+      "source_id": "skYatVjFTlY",
+      "teacher": {
+        "psnr_db": 34.06862488267136,
+        "ssim": 0.9676485657691956,
+        "lpips": 0.027969300746917725
+      },
+      "student": {
+        "psnr_db": 9.256924547454977,
+        "ssim": 0.20139729976654053,
+        "lpips": 0.7329044938087463
+      }
+    },
+    {
+      "path": "videos/VidGen_video_271/qeXfrQzzE4c-Scene-0016.mp4",
+      "source_id": "qeXfrQzzE4c",
+      "teacher": {
+        "psnr_db": 32.694693503905945,
+        "ssim": 0.9637790322303772,
+        "lpips": 0.03997071832418442
+      },
+      "student": {
+        "psnr_db": 13.634218127321162,
+        "ssim": 0.30688953399658203,
+        "lpips": 0.9026958346366882
+      }
+    },
+    {
+      "path": "videos/VidGen_video_702/ERviDQrmlDg-Scene-0031.mp4",
+      "source_id": "ERviDQrmlDg",
+      "teacher": {
+        "psnr_db": 44.131884982864364,
+        "ssim": 0.9833155870437622,
+        "lpips": 0.01976269856095314
+      },
+      "student": {
+        "psnr_db": 11.785886983735487,
+        "ssim": 0.34504497051239014,
+        "lpips": 0.8107432126998901
+      }
+    },
+    {
+      "path": "videos/VidGen_video_1214/BNqflxQw9Dc-Scene-0019.mp4",
+      "source_id": "BNqflxQw9Dc",
+      "teacher": {
+        "psnr_db": 32.248789684537435,
+        "ssim": 0.9744022488594055,
+        "lpips": 0.014285382814705372
+      },
+      "student": {
+        "psnr_db": 7.495883158922049,
+        "ssim": 0.24621056020259857,
+        "lpips": 0.7920629382133484
+      }
+    },
+    {
+      "path": "videos/VidGen_video_265/EonunM-ZYH4-Scene-0006.mp4",
+      "source_id": "EonunM-ZYH4",
+      "teacher": {
+        "psnr_db": 37.70905221032113,
+        "ssim": 0.9612768292427063,
+        "lpips": 0.06075546517968178
+      },
+      "student": {
+        "psnr_db": 10.288313430733034,
+        "ssim": 0.3076866567134857,
+        "lpips": 0.8866216540336609
+      }
+    },
+    {
+      "path": "videos/VidGen_video_1171/uJ8Qa60KYas-Scene-0158.mp4",
+      "source_id": "uJ8Qa60KYas",
+      "teacher": {
+        "psnr_db": 28.104141295482886,
+        "ssim": 0.8805895447731018,
+        "lpips": 0.06100338324904442
+      },
+      "student": {
+        "psnr_db": 12.50859989854824,
+        "ssim": 0.26309946179389954,
+        "lpips": 0.7927137017250061
+      }
+    },
+    {
+      "path": "videos/VidGen_video_889/BfzCJUU0ZHI-Scene-0069.mp4",
+      "source_id": "BfzCJUU0ZHI",
+      "teacher": {
+        "psnr_db": 35.38583166108991,
+        "ssim": 0.9522623419761658,
+        "lpips": 0.033887624740600586
+      },
+      "student": {
+        "psnr_db": 14.63102909067983,
+        "ssim": 0.32182127237319946,
+        "lpips": 0.797090470790863
+      }
+    },
+    {
+      "path": "videos/VidGen_video_1615/JRh0CGfX7dQ-Scene-0030.mp4",
+      "source_id": "JRh0CGfX7dQ",
+      "teacher": {
+        "psnr_db": 32.34376791338568,
+        "ssim": 0.9795053005218506,
+        "lpips": 0.008727048523724079
+      },
+      "student": {
+        "psnr_db": 10.666916224871215,
+        "ssim": 0.30227038264274597,
+        "lpips": 0.9375701546669006
+      }
+    }
+  ]
+}

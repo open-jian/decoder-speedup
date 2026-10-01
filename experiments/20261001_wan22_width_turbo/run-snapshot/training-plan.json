@@ -1,0 +1,67 @@
+{
+  "effective_batch": 8,
+  "training_rows": 10000,
+  "world_size": 4,
+  "lr_schedule": "constant",
+  "basis": "epochs",
+  "reconstruction_epochs": 100,
+  "requested_reconstruction_samples": 1000000,
+  "rounded_extra_samples": 0,
+  "reconstruction_updates": 125000,
+  "adversarial_updates": 0,
+  "local_accumulation": 2,
+  "changes": [
+    {
+      "event": "framework_change",
+      "previous_files": {
+        "__init__.py": "f6db24be1339375ec65f163f4769ec3579b1d873c33d74cdfa4ce559947634f1",
+        "__main__.py": "cf7390a2508a0fcad4777a4a629fc5212ab655cb45845975995f835676a834e3",
+        "cli.py": "767ef2e90f626dd620768006a02d6efb72e1356b3096f74c23615bff479cb83d",
+        "config.py": "c35f5f59e15d05a186f40eae6833dcdb17596f8bfb88d76727a5282f579fec78",
+        "data.py": "78f93b6179275e4c7cb66d9faa2627278842b168dcc02ec8ad7919ab518c2579",
+        "evaluation.py": "697ba31259dd91a648431cea39227271069bd37d0499d8f5f6e97ceffb841ee9",
+        "export.py": "1d6cfa1f7f255a357cc1b0160292d95997290ac6d2d934132cad9ec86b6c9fbf",
+        "formats.py": "0acce5d26ae2cbf10444815c6278f877abbc03c873bf5b916f0532e084eb1fd0",
+        "models/__init__.py": "4ef22d835d15337b6828dfe143ffed6218171f5e0f7d75309fe6a6a74303a508",
+        "models/wan22/__init__.py": "2e8f46880057a2779745282d09b2f3c2b1b713685f40f946b95fff53d8aaa784",
+        "models/wan22/adapter.py": "7af51f42445b1dc6c9770786f6be0d8e614119611332c3db588f848aa2d50c5b",
+        "provenance.py": "f0216cad15a75002d0ac8705fe691e566bff34e1f457c59fd6142b1e509ba6e8",
+        "runtime.py": "39057dee90c584be585ecee54e268f856f1448f4dc0500460db85a47beb21a61",
+        "tracking.py": "082f47c68add6286fcf09e68cbe9e00d4e4ff2f441c46ebe0cebe0e17c21e087",
+        "training/__init__.py": "fcee972e57cbc43a7586ceb4087960b8b2bd2ba37f44c36c09a657ed1760aaf7",
+        "training/budget.py": "dc9ab8855f8bdb00d7dac6f20afc457d91f1cd3018490653787798749c4e08f6",
+        "training/losses.py": "106dba9eab909ad5e01c1b8e69cf89df5902af12e5204f57a8513cfadb921550",
+        "training/trainer.py": "e04163d83f9db8c8a6d80058866573cc9990a3117faaa255cb12c225bfffae1f"
+      },
+      "current_files": {
+        "__init__.py": "f6db24be1339375ec65f163f4769ec3579b1d873c33d74cdfa4ce559947634f1",
+        "__main__.py": "cf7390a2508a0fcad4777a4a629fc5212ab655cb45845975995f835676a834e3",
+        "cli.py": "2800c56dec78af5b7ce6b99b65ccddc07fd04cc2f3411a20bc487b74714a96c6",
+        "config.py": "c35f5f59e15d05a186f40eae6833dcdb17596f8bfb88d76727a5282f579fec78",
+        "data.py": "6da3f458f607f29568fb302595d3dac4228457bf2a4e7e40ad90b0779e6ff63b",
+        "evaluation.py": "697ba31259dd91a648431cea39227271069bd37d0499d8f5f6e97ceffb841ee9",
+        "export.py": "1d6cfa1f7f255a357cc1b0160292d95997290ac6d2d934132cad9ec86b6c9fbf",
+        "formats.py": "0acce5d26ae2cbf10444815c6278f877abbc03c873bf5b916f0532e084eb1fd0",
+        "models/__init__.py": "4ef22d835d15337b6828dfe143ffed6218171f5e0f7d75309fe6a6a74303a508",
+        "models/wan22/__init__.py": "2e8f46880057a2779745282d09b2f3c2b1b713685f40f946b95fff53d8aaa784",
+        "models/wan22/adapter.py": "7af51f42445b1dc6c9770786f6be0d8e614119611332c3db588f848aa2d50c5b",
+        "provenance.py": "f0216cad15a75002d0ac8705fe691e566bff34e1f457c59fd6142b1e509ba6e8",
+        "runtime.py": "39057dee90c584be585ecee54e268f856f1448f4dc0500460db85a47beb21a61",
+        "tracking.py": "082f47c68add6286fcf09e68cbe9e00d4e4ff2f441c46ebe0cebe0e17c21e087",
+        "training/__init__.py": "fcee972e57cbc43a7586ceb4087960b8b2bd2ba37f44c36c09a657ed1760aaf7",
+        "training/budget.py": "5052bfd2555f5873715f8ed1adc6b73f0ae40506084deb755cbbbfdf9235a756",
+        "training/distributed.py": "6707845fb6cdb0452e9950fa0e55253efdb4cfa656e35294b6518806bfe610f8",
+        "training/losses.py": "106dba9eab909ad5e01c1b8e69cf89df5902af12e5204f57a8513cfadb921550",
+        "training/trainer.py": "ac47ea58785d0ac9aef3a6dfa2593e9ad208787f090a784966bd2a893cd6ce91"
+      },
+      "at_generator_update": 1
+    },
+    {
+      "event": "world_size_change",
+      "at_generator_update": 1,
+      "previous_world_size": 1,
+      "world_size": 4,
+      "effective_batch": 8
+    }
+  ]
+}

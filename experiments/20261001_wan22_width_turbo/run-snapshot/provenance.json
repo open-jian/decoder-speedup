@@ -1,0 +1,56 @@
+{
+  "source": {
+    "commit": "1ea34ff48f87168174e12956e200b1d908b1c5ff",
+    "dirty": true,
+    "files": {
+      "vae2_2.py": "2234634cfd557e020083b92f36a43c4ed69b95e6dcc7e9cbb11ccb2eaf8dc6b4",
+      "winograd_3d_conv.py": "c2be3911db4b81a3de3ddd2a0795fc9c6e54efc2eda8ca3bdfffc6410dc50a5a",
+      "winograd_3d_triton.py": "9b881792fc029ff152ed8a39ac2b9571aa0996a3eba42bf0d242055bf58f27b7",
+      "winograd_conv.py": "30ac9a3977b6e4d7d1be1a480a2b59e7f70d3edf2960294151c09277bb26886b",
+      "winograd_fused_triton.py": "3816ec99679f8aeb51ca1ddb7ae3785a14cf90c023ea46f907cef23a85bae82d",
+      "winograd_triton.py": "ec68409c5b805f685e7281ded7a67aea179ae89138c7cafe4a133366c7fa3c92"
+    }
+  },
+  "teacher_sha256": "20eb789667fa5e60e7516bf509512f6cb61f01b0aa0695eadaea930c13892b36",
+  "initialization": {
+    "strategy": "teacher_prefix",
+    "copied_tensors": 108,
+    "new_projection_tensors": [
+      "upsamples.1.upsamples.0.shortcut.weight",
+      "upsamples.1.upsamples.0.shortcut.bias"
+    ]
+  },
+  "framework_version": "0.1.0",
+  "framework_files": {
+    "__init__.py": "f6db24be1339375ec65f163f4769ec3579b1d873c33d74cdfa4ce559947634f1",
+    "__main__.py": "cf7390a2508a0fcad4777a4a629fc5212ab655cb45845975995f835676a834e3",
+    "cli.py": "2800c56dec78af5b7ce6b99b65ccddc07fd04cc2f3411a20bc487b74714a96c6",
+    "config.py": "c35f5f59e15d05a186f40eae6833dcdb17596f8bfb88d76727a5282f579fec78",
+    "data.py": "6da3f458f607f29568fb302595d3dac4228457bf2a4e7e40ad90b0779e6ff63b",
+    "evaluation.py": "697ba31259dd91a648431cea39227271069bd37d0499d8f5f6e97ceffb841ee9",
+    "export.py": "1d6cfa1f7f255a357cc1b0160292d95997290ac6d2d934132cad9ec86b6c9fbf",
+    "formats.py": "0acce5d26ae2cbf10444815c6278f877abbc03c873bf5b916f0532e084eb1fd0",
+    "models/__init__.py": "4ef22d835d15337b6828dfe143ffed6218171f5e0f7d75309fe6a6a74303a508",
+    "models/wan22/__init__.py": "2e8f46880057a2779745282d09b2f3c2b1b713685f40f946b95fff53d8aaa784",
+    "models/wan22/adapter.py": "7af51f42445b1dc6c9770786f6be0d8e614119611332c3db588f848aa2d50c5b",
+    "provenance.py": "f0216cad15a75002d0ac8705fe691e566bff34e1f457c59fd6142b1e509ba6e8",
+    "runtime.py": "39057dee90c584be585ecee54e268f856f1448f4dc0500460db85a47beb21a61",
+    "tracking.py": "082f47c68add6286fcf09e68cbe9e00d4e4ff2f441c46ebe0cebe0e17c21e087",
+    "training/__init__.py": "fcee972e57cbc43a7586ceb4087960b8b2bd2ba37f44c36c09a657ed1760aaf7",
+    "training/budget.py": "5052bfd2555f5873715f8ed1adc6b73f0ae40506084deb755cbbbfdf9235a756",
+    "training/distributed.py": "6707845fb6cdb0452e9950fa0e55253efdb4cfa656e35294b6518806bfe610f8",
+    "training/losses.py": "106dba9eab909ad5e01c1b8e69cf89df5902af12e5204f57a8513cfadb921550",
+    "training/trainer.py": "ac47ea58785d0ac9aef3a6dfa2593e9ad208787f090a784966bd2a893cd6ce91"
+  },
+  "torch": "2.7.1+cu128",
+  "data": {
+    "train": {
+      "manifest_sha256": "5af33074f45d43520dd502b549ff1eea5064581fb26dc48c40a20bf9458ef52e",
+      "rows": 10000
+    },
+    "val": {
+      "manifest_sha256": "2f1116b6bd0e6a1db0e3e9631e16f1499175c9da5e772ccae0723f908dcf0096",
+      "rows": 256
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{"completed_shards": 1884, "train_pool": 878059, "val_pool": 46035}
+[h264 @ 0x781700c58600] mmco: unref short failure
+[h264 @ 0x781700c58600] mmco: unref short failure
+[h264 @ 0x781700c58600] mmco: unref short failure
+[h264 @ 0x781700c58600] mmco: unref short failure
+[h264 @ 0x781700c58600] mmco: unref short failure
+[h264 @ 0x781700c58600] mmco: unref short failure
+{"split": "train", "valid": 256, "invalid": 0}
+{"split": "train", "valid": 512, "invalid": 0}
+{"split": "train", "valid": 768, "invalid": 0}
+{"split": "train", "valid": 1024, "invalid": 0}
+[h264 @ 0x7817004a0a80] mmco: unref short failure
+[h264 @ 0x7817004a0a80] mmco: unref short failure
+{"split": "train", "valid": 1280, "invalid": 0}
+[h264 @ 0x7817001e8a00] mmco: unref short failure
+[h264 @ 0x7817001e8a00] mmco: unref short failure
+{"split": "train", "valid": 1536, "invalid": 0}
+{"split": "train", "valid": 1792, "invalid": 0}
+[h264 @ 0x78170849a640] mmco: unref short failure
+[h264 @ 0x78170849a640] mmco: unref short failure
+[h264 @ 0x78170849a640] mmco: unref short failure
+{"split": "train", "valid": 2048, "invalid": 0}
+{"split": "train", "valid": 2304, "invalid": 0}
+{"split": "train", "valid": 2560, "invalid": 0}
+{"split": "train", "valid": 2816, "invalid": 0}
+{"split": "train", "valid": 3072, "invalid": 0}
+{"split": "train", "valid": 3328, "invalid": 0}
+{"split": "train", "valid": 3584, "invalid": 0}
+{"split": "train", "valid": 3840, "invalid": 0}
+{"split": "train", "valid": 4096, "invalid": 0}
+{"split": "train", "valid": 4352, "invalid": 0}
+{"split": "train", "valid": 4608, "invalid": 0}
+{"split": "train", "valid": 4864, "invalid": 0}
+[aac @ 0x78170c559f00] Reserved bit set.
+[aac @ 0x78170c559f00] invalid band type
+{"split": "train", "valid": 5120, "invalid": 0}
+{"split": "train", "valid": 5376, "invalid": 0}
+{"split": "train", "valid": 5632, "invalid": 0}
+{"split": "train", "valid": 5888, "invalid": 0}
+{"split": "train", "valid": 6144, "invalid": 0}
+[h264 @ 0x78172cf03f40] mmco: unref short failure
+[h264 @ 0x78172cf03f40] mmco: unref short failure
+[h264 @ 0x78172cf03f40] mmco: unref short failure
+[h264 @ 0x78172cf03f40] mmco: unref short failure
+{"split": "train", "valid": 6400, "invalid": 0}
+{"split": "train", "valid": 6656, "invalid": 0}
+{"split": "train", "valid": 6912, "invalid": 0}
+{"split": "train", "valid": 7168, "invalid": 0}
+{"split": "train", "valid": 7424, "invalid": 0}
+[h264 @ 0x781704504c80] mmco: unref short failure
+[h264 @ 0x781704504c80] mmco: unref short failure
+[h264 @ 0x781704504c80] mmco: unref short failure
+[h264 @ 0x7817119f3e00] mmco: unref short failure
+[h264 @ 0x7817119f3e00] mmco: unref short failure
+[h264 @ 0x7817119f3e00] mmco: unref short failure
+[h264 @ 0x7817119f3e00] mmco: unref short failure
+{"split": "train", "valid": 7680, "invalid": 0}
+{"split": "train", "valid": 7936, "invalid": 0}
+{"split": "train", "valid": 8192, "invalid": 0}
+{"split": "train", "valid": 8447, "invalid": 1}
+{"split": "train", "valid": 8703, "invalid": 1}
+{"split": "train", "valid": 8959, "invalid": 1}
+{"split": "train", "valid": 9215, "invalid": 1}
+[h264 @ 0x7817247a0000] mmco: unref short failure
+[h264 @ 0x7817247a0000] mmco: unref short failure
+{"split": "train", "valid": 9471, "invalid": 1}
+{"split": "train", "valid": 9727, "invalid": 1}
+[h264 @ 0x781704e99f40] mmco: unref short failure
+[h264 @ 0x781704e99f40] mmco: unref short failure
+[h264 @ 0x781704e99f40] mmco: unref short failure
+[h264 @ 0x781704e99f40] mmco: unref short failure
+[h264 @ 0x781704e99f40] mmco: unref short failure
+[h264 @ 0x781704e99f40] mmco: unref short failure
+{"split": "train", "valid": 9983, "invalid": 1}
+{"split": "train", "valid": 10000, "invalid": 1}
+[h264 @ 0x781708044400] mmco: unref short failure
+[h264 @ 0x781708044400] mmco: unref short failure
+[h264 @ 0x7817084c07c0] mmco: unref short failure
+[h264 @ 0x7817084c07c0] mmco: unref short failure
+[h264 @ 0x7817084c07c0] mmco: unref short failure
+[h264 @ 0x7817084c07c0] mmco: unref short failure
+[h264 @ 0x7817084c07c0] mmco: unref short failure
+[h264 @ 0x7817084c07c0] mmco: unref short failure
+{"split": "val", "valid": 256, "invalid": 1}
+{"prepared": true, "output": "/data2/jian/vae-speedup/decoder-speedup/runs/wan22-amd-width-turbo-10k-20261001", "train": 10000, "validation": 256, "invalid": 1}

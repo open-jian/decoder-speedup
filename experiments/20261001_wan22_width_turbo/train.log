@@ -1,0 +1,135 @@
+Setting up [LPIPS] perceptual loss: trunk [vgg], v[0.1], spatial [off]
+/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+Loading model from: /data2/jian/vae-speedup/decoder-speedup/.venv/lib/python3.10/site-packages/lpips/weights/v0.1/vgg.pth
+wandb: Currently logged in as: jxx3451 (miaoyin-uta) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 85cbe9c8
+wandb: Tracking run with wandb version 0.23.1
+wandb: Run data is saved locally in /data2/jian/vae-speedup/decoder-speedup/runs/wan22-amd-width-turbo-10k-20261001/wandb-logs/wandb/run-20261001_054645-85cbe9c8
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run wan22-amd-width-turbo-10k-20261001
+wandb: ⭐️ View project at https://wandb.ai/miaoyin-uta/vae-speedup
+wandb: 🚀 View run at https://wandb.ai/miaoyin-uta/vae-speedup/runs/85cbe9c8
+{"generator_updates": 1, "discriminator_updates": 0, "microbatches": 8, "stage": "reconstruction", "loss": 1.9548885822296143, "l1": 0.5125089287757874, "lpips": 0.8239315152168274, "feature": 0.6184481382369995, "g_gan": 0.0, "gan_weight": 0.0, "g_grad_norm": 3.256617307662964, "update_seconds": 5.871562556363642}
+wandb: updating run metadata
+wandb: uploading history steps 1-2, summary
+wandb: 
+wandb: Run history:
+wandb:                     gan/active ▁▁
+wandb:                  gan/g_gan_max ▁▁
+wandb:                 gan/g_gan_mean ▁▁
+wandb:             gan/gan_weight_max ▁▁
+wandb:            gan/gan_weight_mean ▁▁
+wandb:   monitor/sdk_log_calls_so_far ▁█
+wandb:  monitor/sdk_log_ms_max_so_far ▁█
+wandb: monitor/sdk_log_seconds_so_far ▁█
+wandb:           monitor/window_start ▁▁
+wandb:         monitor/window_updates ▁▁
+wandb:                            +31 ...
+wandb: 
+wandb: Run summary:
+wandb:            best/lpips 0.817
+wandb:     best/lpips_update 1
+wandb:          best/psnr_db 11.15285
+wandb:   best/psnr_db_update 1
+wandb:             best/ssim 0.25897
+wandb:      best/ssim_update 1
+wandb: discriminator_updates 0
+wandb:          failure_type 
+wandb:            gan/active 0
+wandb:         gan/g_gan_max 0
+wandb:                   +51 ...
+wandb: 
+wandb: 🚀 View run wan22-amd-width-turbo-10k-20261001 at: https://wandb.ai/miaoyin-uta/vae-speedup/runs/85cbe9c8
+wandb: ⭐️ View project at: https://wandb.ai/miaoyin-uta/vae-speedup
+wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./runs/wan22-amd-width-turbo-10k-20261001/wandb-logs/wandb/run-20261001_054645-85cbe9c8/logs
+Setting up [LPIPS] perceptual loss: trunk [vgg], v[0.1], spatial [off]
+/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+Loading model from: /data2/jian/vae-speedup/decoder-speedup/.venv/lib/python3.10/site-packages/lpips/weights/v0.1/vgg.pth
+wandb: Currently logged in as: jxx3451 (miaoyin-uta) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 85cbe9c8
+wandb: Tracking run with wandb version 0.23.1
+wandb: Run data is saved locally in /data2/jian/vae-speedup/decoder-speedup/runs/wan22-amd-width-turbo-10k-20261001/wandb-logs/wandb/run-20261001_054715-85cbe9c8
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Resuming run wan22-amd-width-turbo-10k-20261001
+wandb: ⭐️ View project at https://wandb.ai/miaoyin-uta/vae-speedup
+wandb: 🚀 View run at https://wandb.ai/miaoyin-uta/vae-speedup/runs/85cbe9c8
+wandb: updating run metadata
+wandb: uploading config.yaml
+wandb: 
+wandb: Run history:
+wandb:                     gan/active ▁
+wandb:                  gan/g_gan_max ▁
+wandb:                 gan/g_gan_mean ▁
+wandb:             gan/gan_weight_max ▁
+wandb:            gan/gan_weight_mean ▁
+wandb:   monitor/sdk_log_calls_so_far ▁
+wandb:  monitor/sdk_log_ms_max_so_far ▁
+wandb: monitor/sdk_log_seconds_so_far ▁
+wandb:           monitor/window_start ▁
+wandb:         monitor/window_updates ▁
+wandb:                            +20 ...
+wandb: 
+wandb: Run summary:
+wandb:            best/lpips 0.817
+wandb:     best/lpips_update 1
+wandb:          best/psnr_db 11.15285
+wandb:   best/psnr_db_update 1
+wandb:             best/ssim 0.25897
+wandb:      best/ssim_update 1
+wandb: discriminator_updates 0
+wandb:          failure_type KeyboardInterrupt
+wandb:            gan/active 0
+wandb:         gan/g_gan_max 0
+wandb:                   +51 ...
+wandb: 
+wandb: 🚀 View run wan22-amd-width-turbo-10k-20261001 at: https://wandb.ai/miaoyin-uta/vae-speedup/runs/85cbe9c8
+wandb: ⭐️ View project at: https://wandb.ai/miaoyin-uta/vae-speedup
+wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./runs/wan22-amd-width-turbo-10k-20261001/wandb-logs/wandb/run-20261001_054715-85cbe9c8/logs
+Traceback (most recent call last):
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/data2/jian/vae-speedup/decoder-speedup/src/decoder_speedup/__main__.py", line 2, in <module>
+    main()
+  File "/data2/jian/vae-speedup/decoder-speedup/src/decoder_speedup/cli.py", line 160, in main
+    result = trainer.fit(output, evaluate, tracker, stop_after_updates=args.stop_after_updates)
+  File "/data2/jian/vae-speedup/decoder-speedup/src/decoder_speedup/training/trainer.py", line 254, in fit
+    metrics = self.step()
+  File "/data2/jian/vae-speedup/decoder-speedup/src/decoder_speedup/training/trainer.py", line 112, in step
+    (loss / t.accumulation).backward()
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torch/_tensor.py", line 648, in backward
+    torch.autograd.backward(
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torch/autograd/__init__.py", line 353, in backward
+    _engine_run_backward(
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torch/autograd/graph.py", line 824, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/data2/jian/vae-speedup/decoder-speedup/src/decoder_speedup/__main__.py", line 2, in <module>
+    main()
+  File "/data2/jian/vae-speedup/decoder-speedup/src/decoder_speedup/cli.py", line 160, in main
+    result = trainer.fit(output, evaluate, tracker, stop_after_updates=args.stop_after_updates)
+  File "/data2/jian/vae-speedup/decoder-speedup/src/decoder_speedup/training/trainer.py", line 254, in fit
+    metrics = self.step()
+  File "/data2/jian/vae-speedup/decoder-speedup/src/decoder_speedup/training/trainer.py", line 112, in step
+    (loss / t.accumulation).backward()
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torch/_tensor.py", line 648, in backward
+    torch.autograd.backward(
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torch/autograd/__init__.py", line 353, in backward
+    _engine_run_backward(
+  File "/home/jian/.local/share/mamba/envs/fastwam/lib/python3.10/site-packages/torch/autograd/graph.py", line 824, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+KeyboardInterrupt

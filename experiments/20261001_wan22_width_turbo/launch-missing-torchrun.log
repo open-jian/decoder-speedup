@@ -1,0 +1,1 @@
+/data2/jian/vae-speedup/experiments/20261001_wan22_width_turbo/train-4gpu.sh: line 26: torchrun: command not found

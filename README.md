@@ -17,9 +17,12 @@ src/decoder_speedup/
   export.py       单独部署的学生权重与结构
 configs/wan22/     原宽度对照、局部缩宽对照、AMD阶段宽度主配置
 examples/         真实 Wan 权重的接入验证
+experiments/      具体实验的启动脚本、固定清单及日志快照
 ```
 
 Wan 源码和原始权重作为外部依赖，不复制进本仓库，也不修改。训练循环只依赖 `teacher.prepare()` 返回的模型输入和特征监督；以后新增解码器时增加对应适配器。
+
+本次1万条VidGen、4卡恢复训练的运行资料见 [实验归档](experiments/20261001_wan22_width_turbo/README.md)。
 
 ## 安装
 
