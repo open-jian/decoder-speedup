@@ -8,3 +8,4 @@
 W&B主配置为miaoyin-uta/vae-speedup；使用现有登录，不将key写入代码或配置。源码同步必须排除.secrets目录。连接检查不等于授权正式训练。
 训练指标按绝对G更新次数汇总记录，默认每50次更新；不得用时间触发训练日志导致采样步数漂移。只有SDK系统资源指标按30秒采样。分组、标签和指标口径见docs/MONITORING.md。
 用户已选择Turbo公开train.sh（6bd3adf）的训练配置方式：G/D固定1e-4、batch1×累积8、100轮重建上限、eps1e-15；不要混入论文batch32或作者另一次实验batch16。阶段切换以验证结果为依据，用显式完整状态续训入口。详见docs/TURBO_RECIPE.md。
+2026-10-01 用户要求使用erebus全部4张空闲GPU。采用torchrun数据并行，accumulation表示全局microbatch数，4卡每卡batch1×本地累积2，保持有效batch8及125000次更新；不可因卡数增加而无意把有效batch变成32。仅rank0写文件/W&B。多卡保存必须由全部rank调用，包含各rank随机状态。

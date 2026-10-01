@@ -37,7 +37,7 @@ training:
   reconstruction_updates: null
   reconstruction_epochs: 100
   adversarial_updates: 0
-  accumulation: 8
+  accumulation: 8  # Global microbatches: 4 GPUs each process 2, effective batch stays 8.
   discriminator_updates: 1
   lr_schedule: constant  # Turbo: no warmup and no LR decay.
   learning_rate: 1.0e-4

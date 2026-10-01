@@ -2,13 +2,17 @@
 from ..config import positive_int
 
 
-def resolve_budget(config, rows):
+def resolve_budget(config, rows, world_size=1):
     config.validate()
     positive_int(rows, "training manifest rows")
     t = config.training
+    positive_int(world_size, "world_size")
+    if t.accumulation % world_size:
+        raise ValueError("Global accumulation must be divisible by world_size")
     effective_batch = config.data.batch_size * t.accumulation
     plan = {"effective_batch": effective_batch, "training_rows": rows,
-            "world_size": 1, "lr_schedule": t.lr_schedule}
+            "world_size": world_size, "local_accumulation": t.accumulation // world_size,
+            "lr_schedule": t.lr_schedule}
     if t.reconstruction_epochs is not None:
         samples = rows * t.reconstruction_epochs
         updates = (samples + effective_batch - 1) // effective_batch

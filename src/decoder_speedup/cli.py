@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+from contextlib import nullcontext
 import copy
 import json
 from pathlib import Path
@@ -16,6 +17,7 @@ from .export import export_student, load_student, initialize_checkpoint
 from .runtime import apply_layout, inference_decoder
 from .training.trainer import Trainer, seed_all
 from .training.budget import resolve_budget
+from .training import distributed as parallel
 from .training.losses import PerceptualLoss
 from .evaluation import evaluate_dataset, benchmark_decoder
 from .tracking import WandbTracker, check_connection
@@ -49,6 +51,7 @@ def main(argv=None):
     inspect.add_argument("config")
     plan = commands.add_parser("plan", help="Resolve epoch budget from a fixed manifest; no model or training")
     plan.add_argument("config")
+    plan.add_argument("--world-size", type=int, default=1)
     manifest = commands.add_parser("manifest", help="Freeze source-disjoint train/validation JSONL")
     manifest.add_argument("--root", required=True)
     manifest.add_argument("--output", required=True)
@@ -59,6 +62,7 @@ def main(argv=None):
     train = commands.add_parser("train")
     train.add_argument("config")
     train.add_argument("--resume", help="Trusted full training checkpoint; config must match")
+    train.add_argument("--allow-framework-change", action="store_true", help="Explicitly allow audited framework code changes on resume; keep model/data/recipe strict")
     continuation = train.add_mutually_exclusive_group()
     continuation.add_argument("--start-gan-updates", type=int, help="Resume reconstruction state and run this many additional GAN G updates")
     continuation.add_argument("--extend-reconstruction-updates", type=int, help="Resume and add this many G updates to the existing reconstruction budget")
@@ -110,7 +114,7 @@ def main(argv=None):
     cfg = load_config(args.config)
     if args.command == "plan":
         dataset = VideoDataset(cfg.data, cfg.data.train_manifest)
-        print(json.dumps(dict(resolve_budget(cfg, len(dataset)), manifest=dataset.identity), indent=2))
+        print(json.dumps(dict(resolve_budget(cfg, len(dataset), args.world_size), manifest=dataset.identity), indent=2))
         return
     if args.command == "inspect":
         source = load_source(cfg.model.source)
@@ -123,53 +127,12 @@ def main(argv=None):
                           "parameter_ratio": count(student) / count(original), "source": source_identity(cfg.model.source),
                           "note": "Parameter reduction is not a measured speedup or restored quality result"}, indent=2))
         return
+    if args.command == "train":
+        with parallel.execution(cfg.runtime):
+            run_training(cfg, args)
+        return
     require_single_process()
     seed_all(cfg.training.seed)
-    if args.command == "train":
-        for name in ("start_gan_updates", "extend_reconstruction_updates", "stop_after_updates"):
-            if getattr(args, name) is not None:
-                positive_int(getattr(args, name), name)
-        if (args.start_gan_updates is not None or args.extend_reconstruction_updates is not None) and not args.resume:
-            raise ValueError("GAN transition / budget extension requires --resume")
-        if cfg.runtime.weight_dtype != "fp32":
-            raise ValueError("Training requires weight_dtype=fp32")
-        if cfg.runtime.compile:
-            raise ValueError("Compilation is inference-only in this version")
-        output = Path(cfg.output)
-        if output.exists() and any(output.iterdir()) and not args.resume:
-            raise FileExistsError("Output directory is not empty; use a new run directory or --resume")
-        train_data = VideoDataset(cfg.data, cfg.data.train_manifest)
-        val_data = VideoDataset(cfg.data, cfg.data.val_manifest, training=False)
-        assert_disjoint(train_data, val_data)
-        teacher, student, provenance = setup(cfg)
-        provenance["data"] = {"train": train_data.identity, "val": val_data.identity}
-        stream = BatchStream(train_data, cfg.data.batch_size, cfg.training.seed)
-        trainer = Trainer(student, teacher, stream, cfg, provenance)
-        if args.resume:
-            trainer.resume(args.resume, start_gan_updates=args.start_gan_updates,
-                           extend_reconstruction_updates=args.extend_reconstruction_updates)
-        if args.stop_after_updates is not None and args.stop_after_updates <= trainer.updates:
-            raise ValueError("stop_after_updates must exceed the completed generator update count")
-        output.mkdir(parents=True, exist_ok=True)
-        (output / "config.resolved.yaml").write_text(yaml.safe_dump(cfg.to_dict(), sort_keys=False))
-        write_json(provenance, output / "provenance.json")
-        write_json(trainer.training_plan, output / "training-plan.json")
-        evaluate = lambda model: evaluate_dataset(model, teacher, val_data, cfg.runtime, cfg.training.eval_clips, trainer.perceptual)
-        with WandbTracker(cfg, output, dict(provenance, training_plan=trainer.training_plan), trainer.tracking_state) as tracker:
-            trainer.tracking_state = tracker.state
-            result = trainer.fit(output, evaluate, tracker, stop_after_updates=args.stop_after_updates)
-            # Always validate at the end, even for budgets shorter than eval_every.
-            with trainer.ema_weights() as model:
-                if result is None:
-                    started = time.perf_counter()
-                    result = evaluate(model)
-                    tracker.log_validation(result, trainer.updates, seconds=time.perf_counter() - started)
-                write_json(result, output / "evaluation-final.json")
-                export_student(model, output / "student.pt", cfg.model.source,
-                               dict(provenance, generator_updates=trainer.updates, discriminator_updates=trainer.d_updates,
-                                    weights="ema", wandb_run_id=tracker.state.get("run_id")))
-            tracker.mark_complete(trainer)
-        return
     source = load_source(cfg.model.source)
     teacher = WanTeacher(source, cfg.model.weights, cfg.runtime.device)
     student, artifact = load_student(args.student, cfg.model.source, cfg.runtime.device)
@@ -215,3 +178,61 @@ def main(argv=None):
                 tracker.log_benchmark(result)
             tracker.run.summary["origin_training_run_id"] = provenance.get("wandb_run_id") or "unknown"
     print(json.dumps({"output": str(Path(args.output).resolve())}))
+
+
+def run_training(cfg, args):
+    seed_all(cfg.training.seed)
+    for name in ("start_gan_updates", "extend_reconstruction_updates", "stop_after_updates"):
+        if getattr(args, name) is not None:
+            positive_int(getattr(args, name), name)
+    if (args.start_gan_updates is not None or args.extend_reconstruction_updates is not None) and not args.resume:
+        raise ValueError("GAN transition / budget extension requires --resume")
+    if args.allow_framework_change and not args.resume:
+        raise ValueError("--allow-framework-change requires --resume")
+    if cfg.training.accumulation % parallel.world_size():
+        raise ValueError("Global accumulation must be divisible by world_size")
+    if cfg.runtime.weight_dtype != "fp32":
+        raise ValueError("Training requires weight_dtype=fp32")
+    if cfg.runtime.compile:
+        raise ValueError("Compilation is inference-only in this version")
+    output = Path(cfg.output)
+    if output.exists() and any(output.iterdir()) and not args.resume:
+        raise FileExistsError("Output directory is not empty; use a new run directory or --resume")
+    train_data = VideoDataset(cfg.data, cfg.data.train_manifest)
+    val_data = VideoDataset(cfg.data, cfg.data.val_manifest, training=False)
+    assert_disjoint(train_data, val_data)
+    teacher, student, provenance = setup(cfg)
+    provenance["data"] = {"train": train_data.identity, "val": val_data.identity}
+    stream = BatchStream(train_data, cfg.data.batch_size, cfg.training.seed)
+    trainer = Trainer(student, teacher, stream, cfg, provenance)
+    if args.resume:
+        trainer.resume(args.resume, start_gan_updates=args.start_gan_updates,
+                       extend_reconstruction_updates=args.extend_reconstruction_updates,
+                       allow_framework_change=args.allow_framework_change)
+    if args.stop_after_updates is not None and args.stop_after_updates <= trainer.updates:
+        raise ValueError("stop_after_updates must exceed the completed generator update count")
+    if parallel.primary():
+        output.mkdir(parents=True, exist_ok=True)
+        (output / "config.resolved.yaml").write_text(yaml.safe_dump(cfg.to_dict(), sort_keys=False))
+        write_json(provenance, output / "provenance.json")
+        write_json(trainer.training_plan, output / "training-plan.json")
+    parallel.barrier()
+    evaluate = lambda model: evaluate_dataset(model, teacher, val_data, cfg.runtime, cfg.training.eval_clips, trainer.perceptual)
+    tracking = WandbTracker(cfg, output, dict(provenance, training_plan=trainer.training_plan), trainer.tracking_state) if parallel.primary() else nullcontext(None)
+    with tracking as tracker:
+        if tracker is not None:
+            trainer.tracking_state = tracker.state
+        result = trainer.fit(output, evaluate, tracker, stop_after_updates=args.stop_after_updates)
+        if parallel.primary():
+            # Always validate at the end, even for budgets shorter than eval_every.
+            with trainer.ema_weights() as model:
+                if result is None:
+                    started = time.perf_counter()
+                    result = evaluate(model)
+                    tracker.log_validation(result, trainer.updates, seconds=time.perf_counter() - started)
+                write_json(result, output / "evaluation-final.json")
+                export_student(model, output / "student.pt", cfg.model.source,
+                               dict(provenance, generator_updates=trainer.updates, discriminator_updates=trainer.d_updates,
+                                    weights="ema", wandb_run_id=tracker.state.get("run_id")))
+            tracker.mark_complete(trainer)
+    parallel.barrier()

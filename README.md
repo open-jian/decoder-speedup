@@ -2,7 +2,7 @@
 
 独立的解码器加速与恢复训练项目。首版采用 **AMD v1/v3 的阶段宽度，接入原 Wan2.2 VAE，仅做缩宽**。原编码器冻结，训练学生解码器；latent 的 48 个通道及归一化约定不变。
 
-目前支持从结构配置到训练、评测、导出的完整流程。首版为**单卡训练**。默认宽度来自 AMD 发布配置；在保留 Wan 原结构的条件下，画质恢复、训练预算和加速效果仍待验证。
+目前支持从结构配置到训练、评测、导出的完整流程。支持单卡和torchrun多卡训练，详见 [多卡说明](docs/DISTRIBUTED.md)。默认宽度来自 AMD 发布配置；在保留 Wan 原结构的条件下，画质恢复、训练预算和加速效果仍待验证。
 
 ## 项目结构
 
@@ -101,7 +101,7 @@ CUDA_VISIBLE_DEVICES=0 python -m decoder_speedup train configs/wan22/width.yaml
 
 学生损失为 `L1 + λp·LPIPS + λf·特征MSE`，目标图像为原视频；老师固定，提供 latent 和中间特征。不同宽度的特征通过训练用 1×1×1 投影对齐，投影头不导出。没有给固定编码器添加无效的 KL 梯度。
 
-`reconstruction_updates` 是第一阶段 G 优化器更新数；`adversarial_updates` 是后续 GAN 阶段 G 更新数。两者之和是硬停止预算。`accumulation` 每积累 N 个批次更新一次 G。GAN 阶段每次 G 更新后按 `discriminator_updates` 更新 D，每次 D 更新使用这 N 批真实/生成视频的平均损失。D 用 hinge loss，G 用 `-D(fake)`；可选按最后 RGB 卷积上的梯度范数给 GAN 权重自适应缩放。
+`reconstruction_updates` 是第一阶段 G 优化器更新数；`adversarial_updates` 是后续 GAN 阶段 G 更新数。两者之和是硬停止预算。`accumulation` 表示一次G更新的全局microbatch数；四卡时各处理其中四分之一，保持有效batch不变。GAN 阶段每次 G 更新后按 `discriminator_updates` 更新 D，每次 D 更新使用这 N 批真实/生成视频的平均损失。D 用 hinge loss，G 用 `-D(fake)`；可选按最后 RGB 卷积上的梯度范数给 GAN 权重自适应缩放。
 
 主配置采用 [Turbo公开训练配置](docs/TURBO_RECIPE.md)：固定G/D学习率1e-4、batch1、累积8、100轮重建预算。先读取固定训练清单换算实际G更新数，不再用2万步占位；GAN初始关闭。
 
@@ -119,7 +119,7 @@ python -m decoder_speedup train "$RUN_DIR/config.resolved.yaml" \
 
 `GAN_UPDATES`为显式正整数，不设未经验证的默认值。还可用 `--extend-reconstruction-updates` 延长尚未开始GAN的预算。阶段变更后使用输出目录的 `config.resolved.yaml` 续训。普通resume仍严格核对配方；仅显式变更入口放开对应预算字段，其他模型/数据/训练设置保持核验。
 
-完整断点保存学生、特征投影、G/D优化器、判别器、EMA、更新计数、随机状态、数据游标、训练计划与监控窗口。首版明确采用固定学习率，无warmup和衰减。详细来源、与Turbo的工程差异及阶段操作见 [TURBO_RECIPE.md](docs/TURBO_RECIPE.md)。
+完整断点保存学生、特征投影、G/D优化器、判别器、EMA、更新计数、随机状态、数据游标、训练计划与监控窗口。当前明确采用固定学习率，无warmup和衰减。详细来源、与Turbo的工程差异及阶段操作见 [TURBO_RECIPE.md](docs/TURBO_RECIPE.md)。
 
 训练输出包括解析后的配置、来源哈希、逐步 JSONL、断点、逐片段评测、最终 EMA 学生。恢复训练质量受初始化、结构、数据与预算共同影响；[方法与边界](docs/TRAINING.md) 说明与 Turbo 的关系。
 
@@ -195,4 +195,4 @@ WAN22_SOURCE=/path/to/Wan2.2 CUDA_VISIBLE_DEVICES='' python -m pytest -q
 
 真实官方权重的验证程序在 `examples/verify_real_weights.py`：只做合成小输入的原结构对齐、缩宽反传和导出回读，零优化器更新。首次验证记录见 [docs/VALIDATION.md](docs/VALIDATION.md)。
 
-暂未实现：减层、自动宽度搜索、AMD 学生结构、多卡训练、梯度检查点/预编码 latent 缓存。没有把参数减少量当成速度收益，也没有用这次功能验证宣称恢复画质。
+暂未实现：减层、自动宽度搜索、AMD 学生结构、梯度检查点/预编码 latent 缓存。没有把参数减少量当成速度收益，也没有用这次功能验证宣称恢复画质。

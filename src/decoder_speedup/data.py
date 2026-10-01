@@ -157,7 +157,7 @@ class BatchStream:
             random.Random(self.seed + self.epoch).shuffle(self._order)
         return self._order
 
-    def next(self):
+    def next(self, decode=True):
         clips = []
         for _ in range(self.batch_size):
             if self.cursor == len(self.dataset):
@@ -167,9 +167,10 @@ class BatchStream:
             index = self._indices()[self.cursor]
             token = f"{self.seed}:{self.epoch}:{index}"
             seed = int(hashlib.sha256(token.encode()).hexdigest()[:16], 16)
-            clips.append(self.dataset.get(index, seed))
+            if decode:
+                clips.append(self.dataset.get(index, seed))
             self.cursor += 1
-        return torch.stack(clips)
+        return torch.stack(clips) if decode else None
 
     def state_dict(self):
         return {"epoch": self.epoch, "cursor": self.cursor, "seed": self.seed,
