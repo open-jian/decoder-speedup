@@ -53,4 +53,12 @@ runtime:
   weight_dtype: fp32  # FP32 master weights + BF16 AMP; inference may use bf16 weights
   channels_last: false
   compile: false
+wandb:
+  enabled: true
+  entity: miaoyin-uta
+  project: vae-speedup
+  mode: online
+  group: wan22-amd-width
+  tags: [wan22, amd-width, width-only]
+  log_every: 10
 output: ${RUN_DIR}

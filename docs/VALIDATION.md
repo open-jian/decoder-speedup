@@ -49,3 +49,9 @@
 erebus空闲GPU0上，用原Wan真实权重、9帧32×32合成输入检查这组精确配置：原宽度对齐误差0；AMD宽度学生反传梯度有限、老师无梯度；导出回读误差0。为 `upsamples.1.upsamples.0` 新增的1×1×1旁路投影明确记录在初始化报告中，残差块总数不变。真实模型仍为0次优化器更新，没有画质恢复或速度结论。原始结果为研究归档 `results/20260930_decoder_compress/amd_width_real_weights.json`。
 
 当前纯缩宽decoder有91,198,892参数（原版的16.431%）。该数值不同于AMD完整学生，因为本版保留Wan原来的卷积、注意力、深度和上采样；不能据参数量宣称达到AMD的速度/画质。
+
+## W&B 监控接入验证（2026-09-30）
+
+25项CPU测试在ada0与erebus通过。新增测试覆盖：关闭时不初始化SDK、密钥/私有路径不进入上传配置、真实G/D更新横轴、训练断点保存及恢复run ID、失败退出标记、离线恢复分段和连接检查不产生训练指标。
+
+使用erebus已有登录配置与W&B SDK0.23.1，在 `miaoyin-uta/vae-speedup` 创建并成功结束 [connection-check](https://wandb.ai/miaoyin-uta/vae-speedup/runs/50728c97)。仅上传连接成功与零优化器更新，无模型加载、GPU训练或正式恢复训练；日志接入不改变AMD宽度方案。

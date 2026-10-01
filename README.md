@@ -29,7 +29,7 @@ Wan 源码和原始权重作为外部依赖，不复制进本仓库，也不修�
 python -m venv .venv
 source .venv/bin/activate
 # 根据机器先安装匹配的 PyTorch / torchvision，再安装本项目。
-pip install -e '.[perceptual,test]'
+pip install -e '.[perceptual,tracking,test]'
 ```
 
 已有经过验证的 PyTorch 环境时也可设置 `PYTHONPATH=src` 直接使用 `python -m decoder_speedup`。LPIPS 使用预训练 VGG，首次实例化可能下载官方权重；`TORCH_HOME` 可以指定缓存位置。
@@ -111,6 +111,42 @@ python -m decoder_speedup train configs/wan22/width.yaml \
 完整断点保存学生、特征投影、G/D 优化器、判别器、EMA、G/D 更新计数、随机状态和数据游标。配置/源码/权重/清单标识不一致会拒绝续训。训练日志每行区分 G 更新、D 更新和读入批次数。首版用固定学习率，没有隐藏调度器。
 
 训练输出包括解析后的配置、来源哈希、逐步 JSONL、断点、逐片段评测、最终 EMA 学生。恢复训练质量受初始化、结构、数据与预算共同影响；[方法与边界](docs/TRAINING.md) 说明与 Turbo 的关系。
+
+## W&B 训练监控
+
+主配置已启用 [miaoyin-uta/vae-speedup](https://wandb.ai/miaoyin-uta/vae-speedup)。直接沿用已有 `~/.netrc` 登录或 `WANDB_API_KEY` 环境变量，配置文件中不放密钥。项目使用 W&B 的训练指标记录；Weave 的 OpenAI 请求追踪示例不用于这里的VAE训练。
+
+```yaml
+wandb:
+  enabled: true
+  entity: miaoyin-uta
+  project: vae-speedup
+  mode: online
+  group: wan22-amd-width
+  tags: [wan22, amd-width, width-only]
+  log_every: 10
+```
+
+正式训练后自动记录：
+
+- `train/*`：总损失、L1、LPIPS、特征MSE、GAN损失/权重，以及当前训练阶段。
+- `validation/*`：老师和学生的PSNR、SSIM、启用时的LPIPS，以及学生相对老师的差值；按原有评测间隔上传。
+- `optim/*`：G/D学习率；`timing/*`：每次参数更新的训练循环墙钟时间（不作为解码延迟基准）。
+- `progress/*`：G/D实际更新次数、读取批数、epoch、样本游标和预算完成比例；SDK同时记录系统资源指标。
+
+曲线横轴是实际G更新次数。默认每10次更新记录一条训练值，首步、阶段切换和末步也会记录；这是对应更新的数值，不是10步滑动平均。`wandb-run.json` 保存run链接，完整训练断点保存run ID；在线续训使用同一run。W&B内部日志序号自动递增，所以验证和训练可以落在相同G更新位置。若从较早断点重跑，原有云端记录保留，不会自动删除回退区间。
+
+运行正常或异常退出都会结束W&B会话。默认上传标量、必要实验配置和来源标识，不上传视频、权重、源码、终端输出或私有凭据。`wandb.enabled: false` 关闭监控；`mode: offline` 只保存本地日志。SDK不支持离线原地续接，离线恢复会建立带原run ID标记的新日志段，不能混称在线续训。
+
+可以单独检查连接，不加载模型也不训练：
+
+```bash
+decoder-speedup wandb-check --entity miaoyin-uta --project vae-speedup
+```
+
+这会建立一条明确标记为 `connection-check` 的记录，仅上传连接状态和零训练更新。接入已在erebus的W&B SDK 0.23.1验证。
+
+参考SDK的 [run初始化](https://docs.wandb.ai/models/ref/python/functions) 和 [Run记录/自定义指标](https://docs.wandb.ai/ref/python/experiments/run/) 接口。
 
 ## 评测和导出
 

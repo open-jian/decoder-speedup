@@ -15,6 +15,7 @@ from .runtime import apply_layout, inference_decoder
 from .training.trainer import Trainer, seed_all
 from .training.losses import PerceptualLoss
 from .evaluation import evaluate_dataset, benchmark_decoder
+from .tracking import WandbTracker, check_connection
 
 
 def require_single_process():
@@ -68,7 +69,14 @@ def main(argv=None):
     benchmark.add_argument("--output", required=True)
     benchmark.add_argument("--warmup", type=int, default=5)
     benchmark.add_argument("--repeats", type=int, default=30)
+    check = commands.add_parser("wandb-check", help="Create a connection-check run; no model or training")
+    check.add_argument("--entity", default="miaoyin-uta")
+    check.add_argument("--project", default="vae-speedup")
+    check.add_argument("--output", default="runs/wandb-check")
     args = parser.parse_args(argv)
+    if args.command == "wandb-check":
+        print(json.dumps(check_connection(args.entity, args.project, args.output)))
+        return
     if args.command == "manifest":
         train_rows, val_rows = make_manifests(args.root, args.output, input_manifest=args.input_manifest,
                                             limit=args.limit, seed=args.seed, validation_fraction=args.validation_fraction)
@@ -124,12 +132,17 @@ def main(argv=None):
         (output / "config.resolved.yaml").write_text(yaml.safe_dump(cfg.to_dict(), sort_keys=False))
         write_json(provenance, output / "provenance.json")
         evaluate = lambda model: evaluate_dataset(model, teacher, val_data, cfg.runtime, cfg.training.eval_clips, trainer.perceptual)
-        trainer.fit(output, evaluate)
-        # Always produce a final validation result, even if the budget is shorter than eval_every.
-        with trainer.ema_weights() as model:
-            write_json(evaluate(model), output / "evaluation-final.json")
-            export_student(model, output / "student.pt", cfg.model.source,
-                           dict(provenance, generator_updates=trainer.updates, discriminator_updates=trainer.d_updates, weights="ema"))
+        with WandbTracker(cfg, output, provenance, trainer.tracking_state) as tracker:
+            trainer.tracking_state = tracker.state
+            trainer.fit(output, evaluate, tracker)
+            # Always validate at the end, even for budgets shorter than eval_every.
+            with trainer.ema_weights() as model:
+                result = evaluate(model)
+                write_json(result, output / "evaluation-final.json")
+                tracker.log_validation(result, trainer.updates)
+                export_student(model, output / "student.pt", cfg.model.source,
+                               dict(provenance, generator_updates=trainer.updates, discriminator_updates=trainer.d_updates, weights="ema"))
+            tracker.mark_complete(trainer)
         return
     source = load_source(cfg.model.source)
     teacher = WanTeacher(source, cfg.model.weights, cfg.runtime.device)

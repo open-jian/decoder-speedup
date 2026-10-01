@@ -6,6 +6,7 @@ import copy
 import json
 from pathlib import Path
 import random
+import time
 import numpy as np
 import torch
 from torch import nn
@@ -61,6 +62,7 @@ class Trainer:
         # EMA includes decoder and frozen normalization/latent projection, not teacher/D/feature heads.
         self.ema = {k: v.detach().clone() for k, v in self.student.state_dict().items()}
         self.updates = self.d_updates = self.microbatches = 0
+        self.tracking_state = {}
 
     def _batch(self):
         video = self.stream.next().to(self.device)
@@ -148,7 +150,7 @@ class Trainer:
     def save(self, path):
         # Saved only at complete G/D update boundaries; gradients need not be serialized.
         atomic_torch_save({"format": TRAINING_FORMAT, "config": self.config.to_dict(),
-                           "provenance": self.provenance, "student": self.student.state_dict(),
+                           "provenance": self.provenance, "tracking": self.tracking_state, "student": self.student.state_dict(),
                            "alignment": self.alignment.state_dict(), "optimizer": self.optimizer.state_dict(),
                            "discriminator": self.discriminator.state_dict() if self.discriminator else None,
                            "d_optimizer": self.d_optimizer.state_dict() if self.d_optimizer else None,
@@ -164,6 +166,9 @@ class Trainer:
         # A relocated output directory is harmless. Hyperparameters/budgets stay strict.
         previous.pop("output", None)
         current.pop("output", None)
+        # Logging frequency/name/enablement does not change optimizer or data semantics.
+        previous.pop("wandb", None)
+        current.pop("wandb", None)
         if previous != current or state["provenance"] != self.provenance:
             raise ValueError("Resume requires matching config and model/data provenance; use init=checkpoint for a new recipe")
         self.student.load_state_dict(state["student"])
@@ -176,20 +181,27 @@ class Trainer:
         self.updates, self.d_updates, self.microbatches = state["updates"], state["d_updates"], state["microbatches"]
         self.stream.load_state_dict(state["stream"])
         restore_rng(state["rng"])
+        self.tracking_state = dict(state.get("tracking", {}))
 
-    def fit(self, output, evaluate=None):
+    def fit(self, output, evaluate=None, tracker=None):
         output = Path(output)
         output.mkdir(parents=True, exist_ok=True)
         t = self.config.training
         with (output / "train.jsonl").open("a", buffering=1) as log:
             while self.updates < t.reconstruction_updates + t.adversarial_updates:
+                started = time.perf_counter()
                 metrics = self.step()
+                metrics["update_seconds"] = time.perf_counter() - started
                 log.write(json.dumps(metrics) + "\n")
                 print(json.dumps(metrics), flush=True)
+                if tracker is not None:
+                    tracker.log_training(metrics, self)
                 if evaluate and self.updates % t.eval_every == 0:
                     with self.ema_weights() as model:
                         result = evaluate(model)
                     (output / f"eval-{self.updates:08d}.json").write_text(json.dumps(result, indent=2) + "\n")
+                    if tracker is not None:
+                        tracker.log_validation(result, self.updates)
                 if self.updates % t.save_every == 0 or self.updates == t.reconstruction_updates:
                     self.save(output / f"checkpoint-{self.updates:08d}.pt")
             self.save(output / "last.pt")

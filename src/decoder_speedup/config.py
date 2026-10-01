@@ -107,6 +107,18 @@ class RuntimeConfig:
 
 
 @dataclass
+class WandbConfig:
+    enabled: bool = False
+    entity: str = ""
+    project: str = "decoder-speedup"
+    mode: str = "online"
+    name: str = ""
+    group: str = "wan22-width"
+    tags: list[str] = field(default_factory=list)
+    log_every: int = 10
+
+
+@dataclass
 class Config:
     version: int = 1
     model: ModelConfig = field(default_factory=ModelConfig)
@@ -115,12 +127,21 @@ class Config:
     loss: LossConfig = field(default_factory=LossConfig)
     training: TrainConfig = field(default_factory=TrainConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
+    wandb: WandbConfig = field(default_factory=WandbConfig)
     output: str = "runs/wan22"
 
     def validate(self):
         if self.version != 1 or self.model.adapter != "wan22":
             raise ValueError("This version supports version=1 and adapter=wan22")
         self.width.validate()
+        w = self.wandb
+        if type(w.enabled) is not bool or w.mode not in {"online", "offline", "disabled"}:
+            raise ValueError("wandb requires boolean enabled and mode online/offline/disabled")
+        positive_int(w.log_every, "wandb.log_every")
+        if w.enabled and (not w.entity or not w.project or "/" in w.entity or "/" in w.project):
+            raise ValueError("Set wandb.entity and wandb.project separately")
+        if not isinstance(w.tags, list) or not all(isinstance(tag, str) for tag in w.tags):
+            raise ValueError("wandb.tags must be a list of strings")
         if self.model.init not in {"random", "teacher_prefix", "checkpoint"}:
             raise ValueError("Unknown initialization")
         if self.model.init == "checkpoint" and not self.model.student_checkpoint:
@@ -179,7 +200,7 @@ def _construct(cls, value):
 def from_dict(raw):
     raw = dict(raw)
     for key, cls in {"model": ModelConfig, "width": WidthConfig, "data": DataConfig,
-                     "loss": LossConfig, "training": TrainConfig, "runtime": RuntimeConfig}.items():
+                     "loss": LossConfig, "training": TrainConfig, "runtime": RuntimeConfig, "wandb": WandbConfig}.items():
         if key in raw:
             raw[key] = _construct(cls, raw[key])
     return _construct(Config, raw).validate()

@@ -12,6 +12,7 @@ dependencies = ["torch>=2.4", "einops>=0.7", "PyYAML>=6", "numpy>=1.24", "opencv
 [project.optional-dependencies]
 perceptual = ["lpips>=0.1.4"]
 test = ["pytest>=8"]
+tracking = ["wandb>=0.23.1,<1"]
 
 [project.scripts]
 decoder-speedup = "decoder_speedup.cli:main"

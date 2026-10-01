@@ -16,3 +16,6 @@ build/
 dist/
 configs/local*.yaml
 .cache/
+wandb/
+wandb-logs/
+.secrets/
