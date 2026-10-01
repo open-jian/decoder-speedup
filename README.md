@@ -147,7 +147,8 @@ wandb:
 - 模型、缩宽方案、初始化、训练阶段和任务用途自动生成标签；数值超参数、数据哈希留在config。
 - 分为 `train`、`gan`、`quality`、`optim`、`progress`、`timing`、`monitor`；独立测速用 `decode`。
 - 在线续训保留run ID和未上报窗口。本地每步JSONL继续保留；默认不上传视频、权重、源码或控制台输出。
-- `evaluate`、`benchmark` 完成后分别建立独立评测/测速run，通过学生SHA256和来源训练run关联。SDK在测速结束后才启动。
+- 独立 `evaluate`、`benchmark` 默认仅保存本地 JSON；显式添加 `--log-wandb` 才在完成后建立独立run。分组分别为 `wan22-quality-eval`、`wan22-decode-benchmark`，通过学生SHA256和来源训练run关联。SDK在测速结束后才启动。
+- 旧断点早于云端记录时，续训可指定 `--wandb-log-after-update N`：保留原run和历史，补跑到N期间不重复上传训练/验证点，超过N后继续按固定步数记录。
 
 分组规则、指标含义、窗口边界和性能控制详见 [监控体系](docs/MONITORING.md)。`wandb.enabled: false` 禁用，`mode: offline` 只记录本地SDK日志。可单独检查连接，不加载模型或训练：
 

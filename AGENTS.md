@@ -1,4 +1,5 @@
 本项目为独立的 decoder-speedup Git 仓库，父目录是研究归档，两者分别管理。
+独立evaluate/benchmark默认仅保存本地JSON，用户明确要求上传时才用--log-wandb并放独立group；训练内周期验证继续写原训练run。断点落后于云端时先核对云端最大G更新数，用--wandb-log-after-update避免补跑重复点，保留原run ID与历史。
 先读 README.md 和 docs/TRAINING.md；当前首版只做 Wan2.2 宽度压缩，主配置采用 AMD v1/v3 主宽度 [512,512,256,64,32]，hidden为空。
 主配置不得自行换成其他宽度或叠加减层、换算子、移动上采样等改动；宽度所需的通道/归一化/旁路尺寸联动除外。
 不要修改外部 Wan 原码、原始权重或共享 Python 环境。GPU 验证前实时检查占用。

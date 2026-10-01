@@ -63,6 +63,8 @@ def main(argv=None):
     train.add_argument("config")
     train.add_argument("--resume", help="Trusted full training checkpoint; config must match")
     train.add_argument("--allow-framework-change", action="store_true", help="Explicitly allow audited framework code changes on resume; keep model/data/recipe strict")
+    train.add_argument("--wandb-log-after-update", type=int,
+                       help="On resume, preserve cloud history and suppress repeated metrics through this G update")
     continuation = train.add_mutually_exclusive_group()
     continuation.add_argument("--start-gan-updates", type=int, help="Resume reconstruction state and run this many additional GAN G updates")
     continuation.add_argument("--extend-reconstruction-updates", type=int, help="Resume and add this many G updates to the existing reconstruction budget")
@@ -76,12 +78,14 @@ def main(argv=None):
     evaluate.add_argument("config")
     evaluate.add_argument("--student", required=True)
     evaluate.add_argument("--output", required=True)
+    evaluate.add_argument("--log-wandb", action="store_true", help="Log a separate evaluation run after completion; default: local JSON only")
     benchmark = commands.add_parser("benchmark")
     benchmark.add_argument("config")
     benchmark.add_argument("--student", required=True)
     benchmark.add_argument("--output", required=True)
     benchmark.add_argument("--warmup", type=int, default=5)
     benchmark.add_argument("--repeats", type=int, default=30)
+    benchmark.add_argument("--log-wandb", action="store_true", help="Log a separate benchmark run after timing; default: local JSON only")
     check = commands.add_parser("wandb-check", help="Create a connection-check run; no model or training")
     check.add_argument("--entity", default="miaoyin-uta")
     check.add_argument("--project", default="vae-speedup")
@@ -112,6 +116,8 @@ def main(argv=None):
         print(str(Path(args.output).resolve()))
         return
     cfg = load_config(args.config)
+    if args.command in {"evaluate", "benchmark"} and args.log_wandb and cfg.wandb.mode == "disabled":
+        parser.error("--log-wandb requires wandb.mode online or offline")
     if args.command == "plan":
         dataset = VideoDataset(cfg.data, cfg.data.train_manifest)
         print(json.dumps(dict(resolve_budget(cfg, len(dataset), args.world_size), manifest=dataset.identity), indent=2))
@@ -164,14 +170,19 @@ def main(argv=None):
     result["source"] = source_identity(cfg.model.source)
     write_json(result, args.output)
     # Initialize monitoring only AFTER evaluation/timed decoding. Preserve the JSON even if upload fails.
-    if cfg.wandb.enabled and cfg.wandb.mode != "disabled":
+    if args.log_wandb:
         monitored = copy.deepcopy(cfg)
+        job_type = "quality-eval" if args.command == "evaluate" else "decode-benchmark"
+        monitored.wandb.enabled = True
+        monitored.wandb.group = f"{cfg.model.adapter}-{job_type}"
+        if monitored.wandb.name:
+            monitored.wandb.name = f"{job_type}-{monitored.wandb.name}"
         monitored.width = WidthConfig(**artifact["width"])
         provenance = dict(artifact.get("provenance", {}), student_sha256=sha256(args.student), source=result["source"])
         if args.command == "evaluate":
             provenance["data"] = {"val": result["manifest"]}
         with WandbTracker(monitored, Path(args.output).with_suffix(".tracking"), provenance,
-                          job_type="quality-eval" if args.command == "evaluate" else "decode-benchmark") as tracker:
+                          job_type=job_type) as tracker:
             if args.command == "evaluate":
                 tracker.log_validation(result, provenance.get("generator_updates", 0), weights=provenance.get("weights", "exported"))
             else:
@@ -189,6 +200,11 @@ def run_training(cfg, args):
         raise ValueError("GAN transition / budget extension requires --resume")
     if args.allow_framework_change and not args.resume:
         raise ValueError("--allow-framework-change requires --resume")
+    if args.wandb_log_after_update is not None:
+        if not args.resume or not cfg.wandb.enabled or cfg.wandb.mode != "online":
+            raise ValueError("--wandb-log-after-update requires --resume and online W&B tracking")
+        if args.wandb_log_after_update < 0:
+            raise ValueError("--wandb-log-after-update must be nonnegative")
     if cfg.training.accumulation % parallel.world_size():
         raise ValueError("Global accumulation must be divisible by world_size")
     if cfg.runtime.weight_dtype != "fp32":
@@ -218,7 +234,8 @@ def run_training(cfg, args):
         write_json(trainer.training_plan, output / "training-plan.json")
     parallel.barrier()
     evaluate = lambda model: evaluate_dataset(model, teacher, val_data, cfg.runtime, cfg.training.eval_clips, trainer.perceptual)
-    tracking = WandbTracker(cfg, output, dict(provenance, training_plan=trainer.training_plan), trainer.tracking_state) if parallel.primary() else nullcontext(None)
+    tracking = WandbTracker(cfg, output, dict(provenance, training_plan=trainer.training_plan), trainer.tracking_state,
+                            log_after_update=args.wandb_log_after_update) if parallel.primary() else nullcontext(None)
     with tracking as tracker:
         if tracker is not None:
             trainer.tracking_state = tracker.state

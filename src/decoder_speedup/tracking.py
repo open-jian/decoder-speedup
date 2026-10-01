@@ -64,7 +64,8 @@ def empty_window():
 
 
 class WandbTracker:
-    def __init__(self, config, output, provenance=None, state=None, job_type="decoder-recovery"):
+    def __init__(self, config, output, provenance=None, state=None, job_type="decoder-recovery",
+                 log_after_update=None):
         self.config, self.output = config, Path(output)
         self.state = copy.deepcopy(state or {})
         self.run = None
@@ -72,6 +73,13 @@ class WandbTracker:
         self.sdk_calls = 0
         self._log_failed = False
         w = config.wandb
+        self.log_after_update = self.state.get("log_after_update", 0)
+        if log_after_update is not None:
+            if type(log_after_update) is not int or log_after_update < 0:
+                raise ValueError("log_after_update must be a nonnegative integer")
+            if not self.state.get("run_id") or w.mode != "online" or job_type != "decoder-recovery":
+                raise ValueError("log_after_update requires an existing online training run")
+            self.log_after_update = max(self.log_after_update, log_after_update)
         if not w.enabled or w.mode == "disabled":
             return
         config.validate()
@@ -102,6 +110,11 @@ class WandbTracker:
         self.state.update(run_id=self.run.id, entity=w.entity, project=w.project, mode=w.mode)
         self.state.setdefault("window", empty_window())
         self.state.setdefault("best_quality", {})
+        self.state["log_after_update"] = self.log_after_update
+        window = self.state["window"]
+        if (window["count"] and
+                window["context"]["progress/generator_updates"] <= self.log_after_update):
+            self.state["window"] = empty_window()
         try:
             if previous_id and not resume_online:
                 self.run.summary["resumed_from_offline_run"] = previous_id
@@ -111,6 +124,8 @@ class WandbTracker:
             self.run.summary.update({"monitoring_schema": 2, "session_status": "running"})
             if job_type == "decoder-recovery":
                 self.run.summary["training_complete"] = False
+                if self.log_after_update:
+                    self.run.summary["monitor/resume_log_after_update"] = self.log_after_update
             write_json({key: self.state[key] for key in ("run_id", "entity", "project", "mode")} |
                        {"url": self.run.url}, self.output / "wandb-run.json")
         except BaseException:
@@ -155,6 +170,8 @@ class WandbTracker:
         if self.run is None:
             return
         update, stage = metrics["generator_updates"], metrics["stage"]
+        if update <= self.log_after_update:
+            return  # Recompute from the checkpoint without appending duplicate cloud points.
         window = self.state["window"]
         if window["count"] and update != window["context"]["progress/generator_updates"] + 1:
             # Tracking may have been disabled for part of a resumed training job.
@@ -217,7 +234,7 @@ class WandbTracker:
             self.state["window"] = empty_window()
 
     def log_validation(self, result, updates, weights="ema", seconds=None):
-        if self.run is None:
+        if self.run is None or (self.log_after_update and updates <= self.log_after_update):
             return
         data = {"progress/generator_updates": updates, "quality/clips": result["clips"],
                 "quality/weights": weights}
@@ -260,6 +277,9 @@ class WandbTracker:
 
     def mark_complete(self, trainer):
         if self.run is not None:
+            if trainer.updates <= self.log_after_update:
+                self.run.summary["session_stop_reason"] = "replay_incomplete"
+                return
             t = self.config.training
             complete = trainer.updates >= t.reconstruction_updates + t.adversarial_updates
             self.run.summary.update({"training_complete": complete,

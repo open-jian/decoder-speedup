@@ -183,6 +183,34 @@ def test_partial_window_survives_checkpoint_and_stage_isolation(sdk, tmp_path):
         assert after.state["window"]["count"] == 0
 
 
+def test_resume_preserves_cloud_history_while_replaying_unsaved_updates(sdk, tmp_path):
+    cfg = tracked_config()
+    cfg.wandb.log_every = 50
+    cfg.training.reconstruction_updates = 200
+    with WandbTracker(cfg, tmp_path / "before") as before:
+        for step in range(1, 38):
+            before.log_training(scalar_row(step), scalar_trainer())
+        state = copy.deepcopy(before.state)  # Checkpoint at 37, cloud already reached 50.
+    validation = {"clips": 1, "means": {"teacher": {"psnr_db": 35.0}, "student": {"psnr_db": 30.0}}}
+    with WandbTracker(cfg, tmp_path / "resume", state=state, log_after_update=50) as resumed:
+        assert resumed.state["window"]["count"] == 0
+        resumed.log_validation(validation, 40)
+        for step in range(38, 101):
+            resumed.log_training(scalar_row(step), scalar_trainer())
+        assert [row["progress/generator_updates"] for row in resumed.run.history] == [100]
+        row = resumed.run.history[0]
+        assert row["monitor/window_start"] == 51 and row["monitor/window_updates"] == 50
+        assert row["train/loss_mean"] == 75.5
+        resumed.log_validation(validation, 100)
+        assert len(resumed.run.history) == 2
+        assert resumed.state["log_after_update"] == 50
+    assert sdk[0][-1]["id"] == state["run_id"] and sdk[0][-1]["resume"] == "must"
+    with pytest.raises(ValueError, match="existing online training run"):
+        WandbTracker(cfg, tmp_path / "new", log_after_update=50)
+    with pytest.raises(ValueError, match="nonnegative"):
+        WandbTracker(cfg, tmp_path / "bad", state=state, log_after_update=-1)
+
+
 def test_labels_and_numeric_hyperparameters_are_separate():
     cfg = tracked_config()
     cfg.width.stages = [512, 512, 256, 64, 32]

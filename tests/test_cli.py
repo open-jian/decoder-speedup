@@ -52,10 +52,12 @@ def test_cli_training_export_evaluate(source, source_root, tmp_path, monkeypatch
     cli.main(["evaluate", str(config_path), "--student", str(exported), "--output", str(quality_path)])
     quality = json.loads(quality_path.read_text())
     assert quality["clips"] == 1 and set(quality["means"]) == {"teacher", "student"}
+    assert len(sdk[0]) == 1  # Enabled training tracking does not opt standalone evaluation in.
     timing_path = tmp_path / "timing.json"
     original_benchmark = cli.benchmark_decoder
+    expected_sdk_count = 1
     def checked_benchmark(*args, **kwargs):
-        assert len(sdk[0]) == 2  # No benchmark W&B process during any of the three timers.
+        assert len(sdk[0]) == expected_sdk_count  # No SDK initialization during timing.
         return original_benchmark(*args, **kwargs)
     monkeypatch.setattr(cli, "benchmark_decoder", checked_benchmark)
     cli.main(["benchmark", str(config_path), "--student", str(exported), "--output", str(timing_path),
@@ -63,7 +65,14 @@ def test_cli_training_export_evaluate(source, source_root, tmp_path, monkeypatch
     timing = json.loads(timing_path.read_text())
     assert len(timing["native_teacher"]["samples_ms"]) == 3
     assert timing["runtime_student"]["speedup_vs_native"] > 0
+    assert len(sdk[0]) == 1  # Standalone benchmarks are also local by default.
+    cli.main(["evaluate", str(config_path), "--student", str(exported), "--output", str(quality_path), "--log-wandb"])
+    expected_sdk_count = 2
+    cli.main(["benchmark", str(config_path), "--student", str(exported), "--output", str(timing_path),
+              "--warmup", "1", "--repeats", "3", "--log-wandb"])
     assert [call["job_type"] for call in sdk[0]] == ["decoder-recovery", "quality-eval", "decode-benchmark"]
+    assert [call["group"] for call in sdk[0]] == ["wan22-width-recovery", "wan22-quality-eval", "wan22-decode-benchmark"]
+    assert len({call["id"] for call in sdk[0]}) == 3
     assert sdk[1][-1].history[0]["decode/runtime_student_speedup_vs_native"] > 0
     assert sdk[1][-1].summary["origin_training_run_id"] == sdk[1][0].id
     quality_steps = [row["progress/generator_updates"] for row in sdk[1][0].history if "quality/clips" in row]
