@@ -8,10 +8,10 @@ import json
 from pathlib import Path
 import yaml
 import torch
-from decoder_compress.config import WidthConfig, from_dict
-from decoder_compress.models.wan22.adapter import load_source, WanTeacher, build_student
-from decoder_compress.provenance import source_identity, sha256, write_json
-from decoder_compress.export import export_student, load_student
+from decoder_speedup.config import WidthConfig, from_dict
+from decoder_speedup.models.wan22.adapter import load_source, WanTeacher, build_student
+from decoder_speedup.provenance import source_identity, sha256, write_json
+from decoder_speedup.export import export_student, load_student
 
 
 def main():

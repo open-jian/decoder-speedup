@@ -1,13 +1,13 @@
-# decoder-compress
+# decoder-speedup
 
-独立的解码器压缩与恢复训练项目。首版采用 **AMD v1/v3 的阶段宽度，接入原 Wan2.2 VAE，仅做缩宽**。原编码器冻结，训练学生解码器；latent 的 48 个通道及归一化约定不变。
+独立的解码器加速与恢复训练项目。首版采用 **AMD v1/v3 的阶段宽度，接入原 Wan2.2 VAE，仅做缩宽**。原编码器冻结，训练学生解码器；latent 的 48 个通道及归一化约定不变。
 
 目前支持从结构配置到训练、评测、导出的完整流程。首版为**单卡训练**。默认宽度来自 AMD 发布配置；在保留 Wan 原结构的条件下，画质恢复、训练预算和加速效果仍待验证。
 
 ## 项目结构
 
 ```text
-src/decoder_compress/
+src/decoder_speedup/
   models/wan22/    Wan 原码接入、学生构造、通道权重初始化、因果缓存
   config.py       严格配置与结构依赖检查
   data.py         固定样本清单、按源视频划分、可恢复的数据游标
@@ -32,7 +32,7 @@ source .venv/bin/activate
 pip install -e '.[perceptual,test]'
 ```
 
-已有经过验证的 PyTorch 环境时也可设置 `PYTHONPATH=src` 直接使用 `python -m decoder_compress`。LPIPS 使用预训练 VGG，首次实例化可能下载官方权重；`TORCH_HOME` 可以指定缓存位置。
+已有经过验证的 PyTorch 环境时也可设置 `PYTHONPATH=src` 直接使用 `python -m decoder_speedup`。LPIPS 使用预训练 VGG，首次实例化可能下载官方权重；`TORCH_HOME` 可以指定缓存位置。
 
 ## 配置宽度
 
@@ -60,8 +60,8 @@ Wan 的 `DupUp3D` 要求前三次上采样分别满足 `输出通道×8/输入�
 
 ```bash
 export WAN22_SOURCE=/absolute/path/to/Wan2.2
-python -m decoder_compress inspect configs/wan22/original.yaml
-python -m decoder_compress inspect configs/wan22/local-width.yaml
+python -m decoder_speedup inspect configs/wan22/original.yaml
+python -m decoder_speedup inspect configs/wan22/local-width.yaml
 ```
 
 ## 数据
@@ -77,7 +77,7 @@ VidGen 可根据视频文件名提取原 YouTube 视频 ID，同一源视频的�
 ```bash
 export VIDGEN_ROOT=/absolute/path/to/vidgen-1m
 export MANIFEST_DIR=/absolute/path/to/manifests/experiment-001
-python -m decoder_compress manifest --root "$VIDGEN_ROOT" --output "$MANIFEST_DIR" \
+python -m decoder_speedup manifest --root "$VIDGEN_ROOT" --output "$MANIFEST_DIR" \
   --limit 10000 --seed 42 --validation-fraction 0.05
 ```
 
@@ -90,9 +90,9 @@ python -m decoder_compress manifest --root "$VIDGEN_ROOT" --output "$MANIFEST_DI
 ```bash
 export WAN22_WEIGHTS=/absolute/path/to/Wan2.2_VAE.pth
 export RUN_DIR=/absolute/path/to/runs/wan22-width-001
-python -m decoder_compress inspect configs/wan22/width.yaml
+python -m decoder_speedup inspect configs/wan22/width.yaml
 # 确认空闲 GPU 和自己的配置后启动；下面命令会正式训练。
-CUDA_VISIBLE_DEVICES=0 python -m decoder_compress train configs/wan22/width.yaml
+CUDA_VISIBLE_DEVICES=0 python -m decoder_speedup train configs/wan22/width.yaml
 ```
 
 相对路径按配置文件所在目录解析。环境变量必须存在；未知字段和重复 YAML 键会报错。
@@ -104,7 +104,7 @@ CUDA_VISIBLE_DEVICES=0 python -m decoder_compress train configs/wan22/width.yaml
 示例 `20000 + 0` 默认不启动 GAN。可预先配置两个阶段的预算，自动切换；如果看完第一阶段画质才决定 GAN 预算，另开配置，设 `init: checkpoint`、`student_checkpoint: 第一阶段/student.pt`、`reconstruction_updates: 0`、`adversarial_updates: 计划更新数`。这会以 EMA 热启动并新建优化器与判别器，不是完整续训。
 
 ```bash
-python -m decoder_compress train configs/wan22/width.yaml \
+python -m decoder_speedup train configs/wan22/width.yaml \
   --resume /absolute/path/to/checkpoint-00001000.pt
 ```
 
@@ -115,11 +115,11 @@ python -m decoder_compress train configs/wan22/width.yaml \
 ## 评测和导出
 
 ```bash
-python -m decoder_compress export /absolute/path/to/last.pt \
+python -m decoder_speedup export /absolute/path/to/last.pt \
   --source "$WAN22_SOURCE" --output /absolute/path/to/student.pt
-python -m decoder_compress evaluate configs/wan22/width.yaml \
+python -m decoder_speedup evaluate configs/wan22/width.yaml \
   --student /absolute/path/to/student.pt --output /absolute/path/to/quality.json
-python -m decoder_compress benchmark configs/wan22/width.yaml \
+python -m decoder_speedup benchmark configs/wan22/width.yaml \
   --student /absolute/path/to/student.pt --output /absolute/path/to/timing.json
 ```
 
@@ -133,13 +133,15 @@ python -m decoder_compress benchmark configs/wan22/width.yaml \
 
 ```python
 import torch
-from decoder_compress.export import load_student
+from decoder_speedup.export import load_student
 
 student, metadata = load_student("/path/student.pt", "/path/Wan2.2", "cuda:0")
 with torch.inference_mode():
     rgb, _ = student(normalized_wan_latent)
     rgb = rgb.float().clamp(-1, 1)
 ```
+
+项目名和命令统一为 `decoder-speedup`，Python 包名为 `decoder_speedup`。改名前导出的学生权重和训练文件仍可读取；严格续训仍按原规则核对配置和源码指纹。
 
 导出包含学生结构、权重、latent 归一化、来源指纹和输出约定。加载时检查 Wan 源文件哈希。每次调用独立重置因果缓存；单次调用内部逐 latent 解码并保留跨块梯度。
 

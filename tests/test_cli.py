@@ -3,9 +3,9 @@ import cv2
 import numpy as np
 import torch
 import yaml
-from decoder_compress import cli
-from decoder_compress.provenance import source_identity
-from decoder_compress.export import load_student
+from decoder_speedup import cli
+from decoder_speedup.provenance import source_identity
+from decoder_speedup.export import load_student
 from test_training import fixture
 
 

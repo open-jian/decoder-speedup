@@ -4,9 +4,9 @@ import cv2
 import numpy as np
 import pytest
 import torch
-from decoder_compress.config import Config, WidthConfig, load_config, from_dict
-from decoder_compress.data import BatchStream, VideoDataset, assert_disjoint, split_manifest, vidgen_source_id
-from decoder_compress.evaluation import quality_metrics
+from decoder_speedup.config import Config, WidthConfig, load_config, from_dict
+from decoder_speedup.data import BatchStream, VideoDataset, assert_disjoint, split_manifest, vidgen_source_id
+from decoder_speedup.evaluation import quality_metrics
 
 
 @pytest.mark.parametrize("width", [WidthConfig([8, 3, 4, 2, 1]), WidthConfig([8, 8]), WidthConfig([0, 8, 8, 4, 2]),
@@ -83,7 +83,7 @@ def test_video_decode_and_quality(tmp_path):
 
 
 def test_vidgen_manifest_excludes_unfinished_extraction(tmp_path):
-    from decoder_compress.data import make_manifests
+    from decoder_speedup.data import make_manifests
     for folder in ("videos/package", "extraction_in_progress/package"):
         (tmp_path / folder).mkdir(parents=True)
     for i in range(100):

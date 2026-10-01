@@ -2,13 +2,14 @@
 from pathlib import Path
 import torch
 from .config import WidthConfig
+from .formats import STUDENT_FORMAT, STUDENT_FORMATS, TRAINING_FORMATS
 from .models.wan22.adapter import load_source, build_student
 from .provenance import atomic_torch_save, source_identity, sha256
 
 
 def export_student(student, path, source, provenance=None, state_dict=None):
     state = student.state_dict() if state_dict is None else state_dict
-    atomic_torch_save({"format": "decoder-compress-student-v1", "adapter": "wan22",
+    atomic_torch_save({"format": STUDENT_FORMAT, "adapter": "wan22",
                        "width": {"stages": student.width.stages, "hidden": student.width.hidden},
                        "source": source_identity(source), "provenance": provenance or {},
                        "contract": {"latent_channels": 48, "latent_normalization": "Wan2.2 mean/inverse_std in state",
@@ -19,8 +20,8 @@ def export_student(student, path, source, provenance=None, state_dict=None):
 
 def load_student(path, source, device="cpu"):
     artifact = torch.load(path, map_location="cpu", weights_only=True)
-    if artifact.get("format") != "decoder-compress-student-v1" or artifact.get("adapter") != "wan22":
-        raise ValueError("Expected a decoder-compress Wan2.2 student artifact")
+    if artifact.get("format") not in STUDENT_FORMATS or artifact.get("adapter") != "wan22":
+        raise ValueError("Expected a decoder-speedup Wan2.2 student artifact")
     identity = source_identity(source)
     if identity["files"] != artifact["source"]["files"]:
         raise ValueError("Wan source files differ from exported artifact; use its recorded source version")
@@ -33,11 +34,11 @@ def load_student(path, source, device="cpu"):
 def initialize_checkpoint(student, path, source):
     # A warm start is intentionally distinct from optimizer/RNG/data-stream resume.
     state = torch.load(path, map_location="cpu", weights_only=False)
-    if state.get("format") == "decoder-compress-student-v1":
+    if state.get("format") in STUDENT_FORMATS:
         if state["source"]["files"] != source_identity(source)["files"]:
             raise ValueError("Initialization artifact source mismatch")
         width, weights = state["width"], state["state_dict"]
-    elif state.get("format") == "decoder-compress-training-v1":
+    elif state.get("format") in TRAINING_FORMATS:
         if state["provenance"].get("source", {}).get("files") != source_identity(source)["files"]:
             raise ValueError("Initialization checkpoint source mismatch")
         width, weights = state["config"]["width"], state["ema"]

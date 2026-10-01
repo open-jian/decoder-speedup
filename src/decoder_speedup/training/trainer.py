@@ -11,6 +11,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from ..provenance import atomic_torch_save
+from ..formats import TRAINING_FORMAT, TRAINING_FORMATS
 from ..runtime import autocast, apply_layout
 from .losses import FeatureAlignment, PerceptualLoss, PatchDiscriminator, hinge_discriminator, adaptive_weight
 
@@ -146,7 +147,7 @@ class Trainer:
 
     def save(self, path):
         # Saved only at complete G/D update boundaries; gradients need not be serialized.
-        atomic_torch_save({"format": "decoder-compress-training-v1", "config": self.config.to_dict(),
+        atomic_torch_save({"format": TRAINING_FORMAT, "config": self.config.to_dict(),
                            "provenance": self.provenance, "student": self.student.state_dict(),
                            "alignment": self.alignment.state_dict(), "optimizer": self.optimizer.state_dict(),
                            "discriminator": self.discriminator.state_dict() if self.discriminator else None,
@@ -157,7 +158,7 @@ class Trainer:
     def resume(self, path):
         # Training checkpoints contain Python/NumPy RNG state. Only load your own trusted files.
         state = torch.load(path, map_location="cpu", weights_only=False)
-        if state.get("format") != "decoder-compress-training-v1":
+        if state.get("format") not in TRAINING_FORMATS:
             raise ValueError("Not a training checkpoint")
         previous, current = copy.deepcopy(state["config"]), self.config.to_dict()
         # A relocated output directory is harmless. Hyperparameters/budgets stay strict.

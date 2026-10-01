@@ -6,6 +6,7 @@ import os
 import torch
 import yaml
 from .config import load_config, from_dict, RuntimeConfig
+from .formats import TRAINING_FORMATS
 from .data import VideoDataset, BatchStream, assert_disjoint, make_manifests
 from .models.wan22.adapter import load_source, build_student, build_decoder, WanTeacher
 from .provenance import sha256, source_identity, write_json, framework_identity
@@ -38,7 +39,7 @@ def setup(cfg):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="decoder-compress")
+    parser = argparse.ArgumentParser(prog="decoder-speedup")
     commands = parser.add_subparsers(dest="command", required=True)
     inspect = commands.add_parser("inspect", help="Validate structure and count parameters without loading weights")
     inspect.add_argument("config")
@@ -75,7 +76,7 @@ def main(argv=None):
         return
     if args.command == "export":
         checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
-        if checkpoint.get("format") != "decoder-compress-training-v1":
+        if checkpoint.get("format") not in TRAINING_FORMATS:
             raise ValueError("Not a training checkpoint")
         cfg = from_dict(checkpoint["config"])
         if source_identity(args.source)["files"] != checkpoint["provenance"]["source"]["files"]:

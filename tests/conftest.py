@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import pytest
 import torch
-from decoder_compress.models.wan22.adapter import load_source
+from decoder_speedup.models.wan22.adapter import load_source
 
 
 @pytest.fixture(scope="session", autouse=True)

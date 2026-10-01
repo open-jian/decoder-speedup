@@ -3,10 +3,10 @@ import types
 import pytest
 import torch
 import torch.nn.functional as F
-from decoder_compress.config import Config, WidthConfig
-from decoder_compress.data import BatchStream
-from decoder_compress.models.wan22.adapter import build_student
-from decoder_compress.training.trainer import Trainer, seed_all
+from decoder_speedup.config import Config, WidthConfig
+from decoder_speedup.data import BatchStream
+from decoder_speedup.models.wan22.adapter import build_student
+from decoder_speedup.training.trainer import Trainer, seed_all
 from test_adapter import tiny_teacher
 
 
@@ -69,6 +69,10 @@ def test_gan_accumulation_and_complete_resume(source, tmp_path):
     assert second["discriminator_updates"] == 2 and second["microbatches"] == 4
     assert second["gan_weight"] > 0
     trainer.save(tmp_path / "resume.pt")
+    state = torch.load(tmp_path / "resume.pt", weights_only=False)
+    assert state["format"] == "decoder-speedup-training-v1"
+    state["format"] = "decoder-compress-training-v1"
+    torch.save(state, tmp_path / "resume.pt")
     reference = trainer.step()
     resumed = fixture(source)
     resumed.resume(tmp_path / "resume.pt")

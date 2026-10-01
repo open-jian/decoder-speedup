@@ -30,7 +30,7 @@ class PerceptualLoss(nn.Module):
         try:
             import lpips
         except ImportError as exc:
-            raise RuntimeError("LPIPS enabled: install decoder-compress[perceptual] in your project environment") from exc
+            raise RuntimeError("LPIPS enabled: install decoder-speedup[perceptual] in your project environment") from exc
         self.net = lpips.LPIPS(net="vgg").eval().requires_grad_(False)
 
     def forward(self, predicted, target):

@@ -1,9 +1,9 @@
 import types
 import pytest
 import torch
-from decoder_compress.config import WidthConfig
-from decoder_compress.models.wan22.adapter import build_decoder, build_student, Decoder, inherit_prefix
-from decoder_compress.export import export_student, load_student
+from decoder_speedup.config import WidthConfig
+from decoder_speedup.models.wan22.adapter import build_decoder, build_student, Decoder, inherit_prefix
+from decoder_speedup.export import export_student, load_student
 
 
 TINY_WIDTH = WidthConfig([8, 8, 8, 4, 2])
@@ -80,6 +80,13 @@ def test_export_roundtrip(source, source_root, tmp_path):
     latent = torch.randn(1, 48, 2, 1, 1)
     with torch.no_grad():
         torch.testing.assert_close(restored(latent)[0], model(latent)[0], rtol=0, atol=0)
+    assert artifact["format"] == "decoder-speedup-student-v1"
+    # Existing exported models remain readable after the package/directory rename.
+    artifact["format"] = "decoder-compress-student-v1"
+    torch.save(artifact, file)
+    legacy, _ = load_student(file, source_root)
+    with torch.no_grad():
+        torch.testing.assert_close(legacy(latent)[0], model(latent)[0], rtol=0, atol=0)
     assert all(not any(word in key for word in ("encoder", "discriminator", "projection")) for key in artifact["state_dict"])
     artifact["source"]["files"]["vae2_2.py"] = "wrong"
     torch.save(artifact, file)
@@ -88,7 +95,7 @@ def test_export_roundtrip(source, source_root, tmp_path):
 
 
 def test_warm_start_rejects_different_latent_contract(source, source_root, tmp_path):
-    from decoder_compress.export import initialize_checkpoint
+    from decoder_speedup.export import initialize_checkpoint
     teacher = tiny_teacher(source)
     model, _ = build_student(source, TINY_WIDTH, teacher, "teacher_prefix")
     other, _ = build_student(source, TINY_WIDTH, teacher, "random")
@@ -106,7 +113,7 @@ def test_amd_width_preset_preserves_wan_structure(source):
     import json
     from pathlib import Path
     import yaml
-    from decoder_compress.config import from_dict
+    from decoder_speedup.config import from_dict
 
     root = Path(__file__).resolve().parents[1]
     preset = yaml.safe_load((root / "configs/wan22/width.yaml").read_text())

@@ -17,7 +17,7 @@ def load_source(root):
     path = root / "wan/modules/vae2_2.py"
     if not path.is_file():
         raise FileNotFoundError(f"Wan2.2 source not found: {path}")
-    package = "_decoder_compress_wan_" + hashlib.sha256(str(root).encode()).hexdigest()[:12]
+    package = "_decoder_speedup_wan_" + hashlib.sha256(str(root).encode()).hexdigest()[:12]
     name = package + ".vae2_2"
     if name in sys.modules:
         return sys.modules[name]
