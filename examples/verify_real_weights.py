@@ -5,8 +5,10 @@ Run explicitly on a verified idle GPU. No dataset download or training loop.
 import argparse
 import gc
 import json
+from pathlib import Path
+import yaml
 import torch
-from decoder_compress.config import WidthConfig
+from decoder_compress.config import WidthConfig, from_dict
 from decoder_compress.models.wan22.adapter import load_source, WanTeacher, build_student
 from decoder_compress.provenance import source_identity, sha256, write_json
 from decoder_compress.export import export_student, load_student
@@ -38,7 +40,9 @@ def main():
     del same
     gc.collect()
     torch.cuda.empty_cache()
-    width = WidthConfig([512, 512, 512, 256, 64], {"upsamples.2.upsamples.0": 128, "upsamples.3.upsamples.0": 32})
+    # Exercise the shipped width plan, not a separately invented example.
+    preset = Path(__file__).resolve().parents[1] / "configs/wan22/width.yaml"
+    width = from_dict({"width": yaml.safe_load(preset.read_text())["width"]}).width
     # Teacher remains frozen; one backward pass checks actual widths/cache/gradients.
     student, initialization = build_student(source, width, teacher, "teacher_prefix")
     student.to(args.device)

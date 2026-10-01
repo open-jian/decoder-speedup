@@ -1,4 +1,5 @@
-# A runnable example, NOT a validated compression/quality recipe.
+# AMD v1/v3 stage widths on the original Wan2.2 decoder (width-only).
+# Width source/mapping: docs/AMD_WIDTH.md. Recovery recipe is not yet validated.
 # Set WAN22_SOURCE, WAN22_WEIGHTS, VIDGEN_ROOT, MANIFEST_DIR, RUN_DIR first.
 version: 1
 model:
@@ -8,15 +9,9 @@ model:
   init: teacher_prefix
 width:
   # entry/middle, up0, up1, up2, final RGB-resolution stage
-  # Original: [1024, 1024, 1024, 512, 256]. Nonuniform example below.
-  stages: [512, 512, 512, 256, 64]
-  hidden:
-    upsamples.2.upsamples.0: 128
-    upsamples.2.upsamples.1: 128
-    upsamples.2.upsamples.2: 128
-    upsamples.3.upsamples.0: 32
-    upsamples.3.upsamples.1: 32
-    upsamples.3.upsamples.2: 32
+  # Original: [1024, 1024, 1024, 512, 256]. AMD v1/v3 both use the following widths.
+  stages: [512, 512, 256, 64, 32]
+  hidden: {}  # No additional custom block-internal compression.
 data:
   root: ${VIDGEN_ROOT}
   train_manifest: ${MANIFEST_DIR}/train.jsonl

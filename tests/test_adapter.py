@@ -100,3 +100,36 @@ def test_warm_start_rejects_different_latent_contract(source, source_root, tmp_p
         other.mean.add_(1)
     with pytest.raises(ValueError, match="latent contract"):
         initialize_checkpoint(other, file, source_root)
+
+
+def test_amd_width_preset_preserves_wan_structure(source):
+    import json
+    from pathlib import Path
+    import yaml
+    from decoder_compress.config import from_dict
+
+    root = Path(__file__).resolve().parents[1]
+    preset = yaml.safe_load((root / "configs/wan22/width.yaml").read_text())
+    provenance = json.loads((root / "docs/amd_width_source.json").read_text())
+    width = from_dict({"width": preset["width"]}).width
+    for published in provenance["sources"]:
+        blocks = published["decoder_block_out_channels"][::-1]
+        assert width.stages == [blocks[0], *blocks]
+    assert width.hidden == {}
+    with torch.device("meta"):
+        model = build_decoder(source, width)
+    assert sum(isinstance(m, source.ResidualBlock) for m in model.modules()) == 14
+    assert isinstance(model.middle[1], source.AttentionBlock)
+    assert model.conv1.in_channels == 48 and model.conv1.out_channels == 512
+    assert model.head[-1].in_channels == 32 and model.head[-1].out_channels == 12
+    assert [group.avg_shortcut.repeats for group in model.upsamples[:3]] == [8, 4, 1]
+    assert [group.upsamples[-1].mode for group in model.upsamples[:3]] == ["upsample3d", "upsample3d", "upsample2d"]
+    assert [len(group.upsamples) for group in model.upsamples] == [4, 4, 4, 3]
+    for stage, group in enumerate(model.upsamples):
+        output = width.stages[stage + 1]
+        for block in group.upsamples[:3]:
+            assert block.residual[2].out_channels == output
+            assert block.residual[6].in_channels == output
+            assert block.residual[2].kernel_size == block.residual[6].kernel_size == (3, 3, 3)
+            assert block.residual[2].groups == block.residual[6].groups == 1
+    assert model.upsamples[1].upsamples[0].shortcut.kernel_size == (1, 1, 1)
