@@ -92,3 +92,35 @@ def test_vidgen_manifest_excludes_unfinished_extraction(tmp_path):
     train, val = make_manifests(tmp_path, tmp_path / "manifests", validation_fraction=0.2)
     assert len(train) + len(val) == 100
     assert all(row["path"].startswith("videos/") for row in train + val)
+
+
+def test_verified_frame_count_avoids_sampling_past_decodable_end(tmp_path, monkeypatch):
+    path = tmp_path / "edited.avi"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 10, (32, 32))
+    for i in range(20):
+        writer.write(np.full((32, 32, 3), i * 10, dtype=np.uint8))
+    writer.release()
+    actual_capture = cv2.VideoCapture
+
+    class MisreportedCapture:
+        def __init__(self, path):
+            self.capture = actual_capture(path)
+        def get(self, key):
+            return 2000 if key == cv2.CAP_PROP_FRAME_COUNT else self.capture.get(key)
+        def __getattr__(self, key):
+            return getattr(self.capture, key)
+
+    monkeypatch.setattr(cv2, "VideoCapture", MisreportedCapture)
+    cfg = Config().data
+    cfg.root, cfg.frames, cfg.height, cfg.width = str(tmp_path), 17, 16, 16
+    manifest = tmp_path / "train.jsonl"
+    row = {"path": path.name, "source_id": "edited", "decoded_frames": 20}
+    manifest.write_text(json.dumps(row) + "\n")
+    data = VideoDataset(cfg, manifest)
+    for seed in range(4):
+        assert data.get(0, seed).shape == (3, 17, 16, 16)
+    assert VideoDataset(cfg, manifest, training=False).get(0, 0).shape == (3, 17, 16, 16)
+    for invalid in (0, -1, True, 20.5, "20"):
+        manifest.write_text(json.dumps(dict(row, decoded_frames=invalid)) + "\n")
+        with pytest.raises(ValueError, match="decoded_frames"):
+            VideoDataset(cfg, manifest)

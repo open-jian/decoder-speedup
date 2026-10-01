@@ -78,6 +78,8 @@ class VideoDataset:
         for row in self.rows:
             if not isinstance(row.get("source_id"), str) or not row["source_id"]:
                 raise ValueError("Every manifest row requires a nonempty source_id")
+            if "decoded_frames" in row and (type(row["decoded_frames"]) is not int or row["decoded_frames"] < 1):
+                raise ValueError("decoded_frames must be a positive verified integer")
             path = (self.root / row["path"]).resolve()
             if not path.is_relative_to(self.root) or path in seen:
                 raise ValueError(f"Duplicate path or path outside dataset root: {path}")
@@ -95,7 +97,9 @@ class VideoDataset:
         try:
             if not cap.isOpened():
                 raise RuntimeError(f"Cannot open video: {path}")
-            total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            # Some MP4 header counts exceed the actual decodable timeline.
+            # Prefer the frozen preflight count.
+            total = self.rows[index].get("decoded_frames", int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
             needed = 1 + (cfg.frames - 1) * cfg.frame_stride
             if total < needed:
                 raise RuntimeError(f"Video too short ({total} < {needed}): {path}")
