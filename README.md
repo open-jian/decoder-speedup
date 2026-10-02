@@ -1,5 +1,15 @@
 # decoder-speedup
 
+## Compression branch
+
+This is **`wan22-amd-width`**, the branch for AMD stage-width compression and recovery training. The repository's [main branch](https://github.com/open-jian/decoder-speedup/tree/main) is the native Wan2.2 baseline. Use this branch for compressed checkpoints, including `student-80000-ema.pt`.
+
+```bash
+git clone --branch wan22-amd-width https://github.com/open-jian/decoder-speedup.git
+```
+
+Existing compressed exports require the matching external Wan source. For the 80,000-update EMA artifact, use [open-jian/Wan2.2 at ca72457](https://github.com/open-jian/Wan2.2/tree/ca724575ae721ac84639c729bc07dbe2428a49de) from its `winograd` branch. Winograd is disabled in this compression experiment; the source revision is needed for strict artifact compatibility.
+
 An independent framework for decoder acceleration and recovery training. The first version applies **the stage widths from AMD v1/v3 to the original Wan2.2 VAE, changing only channel widths**. The original encoder stays frozen while the student decoder is trained. The 48-channel latent interface and normalization convention remain unchanged.
 
 The framework supports architecture configuration, training, evaluation, and export, with single-GPU and torchrun multi-GPU execution. See [distributed training](docs/DISTRIBUTED.md). The default widths come from AMD's released configurations; recovery quality, training budgets, and speed must be evaluated for this adaptation of the original Wan architecture.

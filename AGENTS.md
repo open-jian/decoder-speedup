@@ -1,3 +1,4 @@
+This checkout is branch wan22-amd-width. Keep compression development and existing compressed checkpoints on this branch; main is the native Wan2.2 baseline. Do not merge the native-only rollback into the active compression training run.
 This project is an independent decoder-speedup Git repository. Its parent directory is a separate research archive; manage the two repositories separately.
 Write project documentation in English, including README files and docs/.
 Standalone evaluate/benchmark commands save local JSON by default. Use --log-wandb only when the user explicitly requests uploads, and use a separate group. Periodic validation during training continues to write to the original training run. When a checkpoint predates cloud logs, first verify the highest cloud G update count, then use --wandb-log-after-update to suppress replayed points while retaining the original run ID and history.
