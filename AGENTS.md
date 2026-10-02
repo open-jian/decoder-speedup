@@ -1,12 +1,13 @@
-本项目为独立的 decoder-speedup Git 仓库，父目录是研究归档，两者分别管理。
-独立evaluate/benchmark默认仅保存本地JSON，用户明确要求上传时才用--log-wandb并放独立group；训练内周期验证继续写原训练run。断点落后于云端时先核对云端最大G更新数，用--wandb-log-after-update避免补跑重复点，保留原run ID与历史。
-先读 README.md 和 docs/TRAINING.md；当前首版只做 Wan2.2 宽度压缩，主配置采用 AMD v1/v3 主宽度 [512,512,256,64,32]，hidden为空。
-主配置不得自行换成其他宽度或叠加减层、换算子、移动上采样等改动；宽度所需的通道/归一化/旁路尺寸联动除外。
-不要修改外部 Wan 原码、原始权重或共享 Python 环境。GPU 验证前实时检查占用。
-2026-10-01 用户已授权开始正式恢复训练，并确认首轮使用1万条训练视频及独立验证集。按已选AMD仅缩宽与Turbo公开脚本配置，在erebus空闲GPU运行；GAN依据验证结果另行切换。
-配置示例和功能测试不等于质量或速度结论；报告倍率时同时区分耗时降幅。
-源码改变后运行必要的 pytest；外部源码接入测试需要 WAN22_SOURCE。
-W&B主配置为miaoyin-uta/vae-speedup；使用现有登录，不将key写入代码或配置。源码同步必须排除.secrets目录。连接检查不等于授权正式训练。
-训练指标按绝对G更新次数汇总记录，默认每50次更新；不得用时间触发训练日志导致采样步数漂移。只有SDK系统资源指标按30秒采样。分组、标签和指标口径见docs/MONITORING.md。
-用户已选择Turbo公开train.sh（6bd3adf）的训练配置方式：G/D固定1e-4、batch1×累积8、100轮重建上限、eps1e-15；不要混入论文batch32或作者另一次实验batch16。阶段切换以验证结果为依据，用显式完整状态续训入口。详见docs/TURBO_RECIPE.md。
-2026-10-01 用户要求使用erebus全部4张空闲GPU。采用torchrun数据并行，accumulation表示全局microbatch数，4卡每卡batch1×本地累积2，保持有效batch8及125000次更新；不可因卡数增加而无意把有效batch变成32。仅rank0写文件/W&B。多卡保存必须由全部rank调用，包含各rank随机状态。
+This project is an independent decoder-speedup Git repository. Its parent directory is a separate research archive; manage the two repositories separately.
+Write project documentation in English, including README files and docs/.
+Standalone evaluate/benchmark commands save local JSON by default. Use --log-wandb only when the user explicitly requests uploads, and use a separate group. Periodic validation during training continues to write to the original training run. When a checkpoint predates cloud logs, first verify the highest cloud G update count, then use --wandb-log-after-update to suppress replayed points while retaining the original run ID and history.
+Read README.md and docs/TRAINING.md first. The current version only reduces Wan2.2 widths; the main configuration uses AMD v1/v3 stage widths [512,512,256,64,32] with an empty hidden mapping.
+Do not substitute other widths or add depth reduction, operator replacement, or moved upsampling to the main configuration without authorization. Width-dependent channel, normalization, and shortcut adjustments are allowed.
+Do not modify external Wan source code, original weights, or shared Python environments. Check current GPU usage before GPU validation.
+2026-10-01: The user authorized formal recovery training and confirmed 10,000 training videos plus an independent validation set for the first run. Use the selected AMD width-only adaptation and Turbo public-script configuration on available erebus GPUs. Enable GAN separately based on validation results.
+Configuration examples and functional tests are not quality or speed conclusions. Report speedup factors and latency reductions separately.
+Run appropriate pytest checks after source changes. External-source integration tests require WAN22_SOURCE.
+The main W&B project is miaoyin-uta/vae-speedup. Reuse existing credentials; never put keys in source code or configuration files. Exclude .secrets when synchronizing source. A connectivity check does not authorize formal training.
+Aggregate training metrics by absolute G update count, every 50 updates by default. Do not use time-triggered training logs that shift sampling steps. Only SDK system metrics use 30-second sampling. See docs/MONITORING.md for groups, tags, and metric definitions.
+The user selected the configuration style of Turbo's public train.sh (6bd3adf): constant G/D LR 1e-4, batch size 1 with accumulation 8, a 100-epoch reconstruction budget, and epsilon 1e-15. Do not mix in the paper's batch size 32 or the author's separate batch size 16 experiment. Stage transitions depend on validation and must use explicit full-state continuation. See docs/TURBO_RECIPE.md.
+2026-10-01: The user requested all four available erebus GPUs. Use torchrun data parallelism. Accumulation means the global microbatch count: four GPUs each use batch size 1 and local accumulation 2, preserving effective batch size 8 and 125,000 updates. Do not accidentally increase the effective batch size to 32 when increasing GPU count. Only rank 0 writes files and W&B logs. All ranks must participate in checkpoint saving, including collection of their random states.

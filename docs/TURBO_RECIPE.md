@@ -1,88 +1,88 @@
-# Turbo公开配置在本框架中的映射
+# Mapping Turbo's public configuration to this framework
 
-用户选择采用Turbo-VAED的配置方式。本版明确采用其固定版本 `6bd3adf679f140abb7d87fe183ae69e54bf64a7f` 的 [train.sh](https://github.com/hustvl/Turbo-VAED/blob/6bd3adf679f140abb7d87fe183ae69e54bf64a7f/train.sh)，不混用论文或Issue中的另一套batch数值。
+The selected recipe follows Turbo-VAED's [train.sh](https://github.com/hustvl/Turbo-VAED/blob/6bd3adf679f140abb7d87fe183ae69e54bf64a7f/train.sh), pinned to revision `6bd3adf679f140abb7d87fe183ae69e54bf64a7f`. It does not mix in different batch sizes reported in the paper or GitHub issues.
 
-## 已落地的主配置
+## Main configuration
 
-| 项目 | 主配置 | 来源或说明 |
+| Setting | Main configuration | Source or explanation |
 | --- | --- | --- |
-| 学生结构 | Wan2.2，AMD阶段宽度 `[512,512,256,64,32]`，只缩宽 | 沿用本项目已选结构，非Turbo学生架构 |
-| 初始化 | `teacher_prefix` | 沿用已选的Wan权重截取初始化；Turbo脚本的学生默认随机初始化，二者不同 |
-| 训练视频 | 17帧、256×256、stride1 | Turbo公开脚本 |
-| 单卡batch / 梯度累积 | **1 / 8**，重建有效batch **8** | Turbo公开单卡脚本；不是论文32或作者另一实验16 |
-| LR | G/D均 **1e-4**，`lr_schedule: constant` | 无warmup、无衰减 |
-| AdamW | betas=[0.9,0.95]，weight_decay=1e-4，eps=1e-15 | Turbo公开脚本 |
-| EMA | 0.999 | Turbo公开脚本 |
-| 重建预算 | **100 epochs** | Turbo公开脚本的上限配置，不代表我们学生已验证的收敛终点 |
-| 重建损失 | L1 / VGG LPIPS / 特征MSE，各系数1 | 沿用Turbo训练思路与当前Wan接线；特征位置middle、upsamples.0 |
-| GAN | 初始关闭；启用后权重0.05×自适应系数 | 先重建，指标稳定后明确切换；不填写一个猜测的统一GAN切换步数 |
+| Student architecture | Wan2.2 with AMD stage widths `[512,512,256,64,32]`, width reduction only | This project's selected architecture, not Turbo's student architecture |
+| Initialization | `teacher_prefix` | Retains the selected Wan channel-slicing initialization; Turbo's script initializes its student randomly |
+| Training clips | 17 frames, 256x256, stride 1 | Turbo's public script |
+| Single-GPU batch / gradient accumulation | **1 / 8**, effective reconstruction batch **8** | Turbo's public single-GPU script; not batch 32 from the paper or 16 from a separate author experiment |
+| Learning rate | **1e-4** for G and D, `lr_schedule: constant` | No warmup or decay |
+| AdamW | betas=[0.9,0.95], weight_decay=1e-4, eps=1e-15 | Turbo's public script |
+| EMA | 0.999 | Turbo's public script |
+| Reconstruction budget | **100 epochs** | The public script's upper budget, not a validated convergence point for this student |
+| Reconstruction losses | L1 / VGG LPIPS / feature MSE, each with coefficient 1 | Turbo's training approach with the current Wan adapter; features at middle and upsamples.0 |
+| GAN | Initially disabled; weight 0.05 times the adaptive factor when enabled | Start with reconstruction and switch explicitly after metrics stabilize; no guessed universal switching update |
 
-AdamW的epsilon是原样采用的配置值，不宣称相对1e-8更优。真实Wan训练尚未运行。
+AdamW epsilon is adopted as published, with no claim that it outperforms 1e-8. At the initial recipe implementation, real Wan recovery training had not yet run; the subsequent run is documented in the [experiment archive](../experiments/20261001_wan22_width_turbo/README.md).
 
-为适配当前工程，以下差异明确保留：BF16 AMP＋FP32主权重（上游启动脚本为FP32）、G梯度裁剪1.0、当前Wan初始化/投影头/小型3D判别器、确定性均值latent、G/D更新实现，以及每50个G更新记录/每1000个G更新验证的监控频率。验证目前16段，上游示例490段；不能将这份配置称为作者结果的完整复现。
+The framework retains these explicit differences: BF16 AMP with FP32 master weights (the upstream launch script uses FP32), G gradient clipping at 1.0, Wan-specific initialization and projection heads, a small 3D discriminator, deterministic mean latents, G/D update semantics, and monitoring every 50 G updates with validation every 1,000. Current periodic validation uses 16 clips, compared with 490 in the upstream example. These settings do not constitute a full reproduction of the authors' results.
 
-GAN阶段本框架每次G更新累积8个microbatch，再更新D；上游将G/D奇偶交替和累积计数交织，G有效样本数会变化。本版保留明确的优化器更新语义，因此采用的是其超参数和分阶段方法，不宣称逐次更新完全一致。
+During GAN training, this framework accumulates eight microbatches per G update, then updates D. Upstream interleaves alternating G/D iterations with accumulation counters, changing the effective G sample count. This framework preserves explicit optimizer-update semantics, adopting the hyperparameters and staged approach without claiming identical update sequences.
 
-## 100轮怎么变成更新次数
+## Converting 100 epochs to updates
 
-训练清单固定后：
+Once the training manifest is fixed:
 
-`重建G更新预算 = ceil(训练条数 × 100 / (单卡batch × 梯度累积))`
+`reconstruction_G_updates = ceil(training_samples * 100 / (batch_size * global_accumulation))`
 
-当前单卡有效batch8。若训练清单恰好10,000条，则预算为 **125,000次G更新**，而不是2万步。下载全量数据不等于自动把全量数据加入训练；只按指定manifest计数。
+The current effective batch size is 8. A manifest containing exactly 10,000 training videos gives **125,000 G updates**, rather than 20,000. Downloading the full dataset does not automatically include it in training; only the selected manifest is counted.
 
-数据流跨epoch连续读取，预算向上取整到完整G更新；最多多读取7段采样。不会为了整除而丢掉固定清单中的视频。原始epochs、条数、有效batch、换算结果和多出的采样数写入 `training-plan.json`、checkpoint与W&B config；解析后的配置使用明确更新数。
+The data stream continues across epoch boundaries, and the budget rounds up to a complete G update. With the current settings, at most seven extra clips may be sampled. Videos are not dropped to make the manifest evenly divisible. Original epochs, sample count, effective batch size, converted budget, and extra sample count are recorded in `training-plan.json`, checkpoints, and W&B config. The resolved configuration contains explicit update counts.
 
-在加载模型前检查预算：
+Inspect the budget before loading models:
 
 ```bash
 python -m decoder_speedup plan configs/wan22/width.yaml
 ```
 
-该命令只读取清单，不解码视频、不使用GPU、不启动W&B或训练。各路径环境变量仍须先设置。API中保留旧的按updates配置方式以兼容历史配置；正式主配置不再使用2万步占位值。
+This command reads manifests only. It does not decode videos, use a GPU, initialize W&B, or start training. Path environment variables must still be set. Update-based configuration remains available for compatibility with older configurations; the main recipe no longer uses the 20,000-update placeholder.
 
-## 分阶段运行
+## Running training stages
 
-以下命令会正式训练，当前任务仅实现接口和CPU回归验证，没有执行这些命令。
+The following commands start training. Initial interface validation used CPU regression tests rather than these production commands.
 
-1. 先按重建配置运行。可设置独立的检查停止点，不改变100轮预算：
+1. Start reconstruction. An independent inspection stop can end a run without changing the 100-epoch budget:
 
 ```bash
 python -m decoder_speedup train configs/wan22/width.yaml --stop-after-updates 1000
 ```
 
-这里1000是一次运行的检查点示例，不是新收敛预算。到点保存完整状态、评测和当前EMA导出；W&B显示 `training_complete=false`。恢复时去掉停止参数，或将其设为更晚的**绝对**G更新数：
+The value 1,000 is an example inspection point, not a new convergence budget. At that point, the framework saves full state, evaluates, exports the current EMA, and records `training_complete=false` in W&B. Resume without the stop option, or set a later **absolute** G update count:
 
 ```bash
 python -m decoder_speedup train "$RUN_DIR/config.resolved.yaml" --resume "$RUN_DIR/last.pt"
 ```
 
-2. 验证集重建趋于稳定后，显式指定本次GAN阶段的G更新预算：
+2. After validation reconstruction stabilizes, explicitly set the G update budget for the GAN stage:
 
 ```bash
 python -m decoder_speedup train "$RUN_DIR/config.resolved.yaml" \
   --resume "$RUN_DIR/last.pt" --start-gan-updates "$GAN_UPDATES"
 ```
 
-`GAN_UPDATES`必须自行设为正整数；作者没有发布统一适用的阶段二预算，框架不猜测。此时从checkpoint已经完成的G更新处切换，不等待剩余重建预算走完。
+Set `GAN_UPDATES` to a positive integer. The authors did not publish a universally applicable second-stage budget, so the framework does not invent one. The switch occurs at the checkpoint's completed G update count without waiting for the remaining reconstruction budget.
 
-保留学生当前权重、特征投影、G优化器状态、EMA、数据位置、计数、W&B run和历史最优值。判别器首次启用时，从断点RNG状态初始化；若已有尚未更新的D状态则继承。之后的普通续训恢复D优化器及随机状态，不重建D。不会通过只加载EMA导出文件来冒充完整续训。
+The transition preserves current student weights, feature projections, G optimizer state, EMA, data position, counters, W&B run, and historical best metrics. On first activation, D is initialized from the checkpoint's RNG state; an existing D state with no updates is retained. Later ordinary resume restores the D optimizer and random state without rebuilding D. Loading an EMA export alone is not full training continuation.
 
-阶段变更写入 `training-plan.json` 的 `changes`，并覆盖输出目录中的 `config.resolved.yaml` 为新计划。后续使用这份解析配置续训；原始epoch配方与新阶段预算不同，普通严格resume会拒绝混用。
+Stage changes are recorded in `training-plan.json` under `changes`, and the output directory's `config.resolved.yaml` is overwritten with the new plan. Use that resolved configuration for later resume. Ordinary strict resume rejects mixing the original epoch recipe with the new stage budget.
 
-3. 如果重建预算用完但仍在改善，显式延长上限：
+3. If reconstruction continues improving at the budget limit, explicitly extend the budget:
 
 ```bash
 python -m decoder_speedup train "$RUN_DIR/config.resolved.yaml" \
   --resume "$RUN_DIR/last.pt" --extend-reconstruction-updates "$EXTRA_UPDATES"
 ```
 
-该数值加在原重建预算上，不是从checkpoint位置重新计数；仅接受尚未进入GAN、未预排GAN预算的重建计划。固定LR保持1e-4，优化器及EMA不清零。
+This value is added to the original reconstruction budget, not counted from the checkpoint position. The option accepts only reconstruction plans that have neither begun GAN training nor scheduled a GAN budget. The learning rate stays at 1e-4; optimizers and EMA are not reset.
 
-## 约束与验证
+## Constraints and validation
 
-普通resume仍要求训练配置和模型/数据来源一致。只有显式阶段切换或预算延长会放开对应预算字段，不能借此修改宽度、学习率、loss、初始化、数据或来源。GAN已经开始后不允许再次使用重建阶段切换入口。
+Ordinary resume requires matching training settings and model/data provenance. Explicit stage transitions and extensions relax only the corresponding budget fields. They cannot change widths, learning rates, losses, initialization, data, or sources. Reconstruction transition options cannot be reused after GAN training has begun.
 
-切换依据参考[Turbo作者说明](https://github.com/hustvl/Turbo-VAED/issues/7#issuecomment-3305673620)：先观察重建损失和验证指标趋于稳定，再启用GAN。GAN可能使PSNR/SSIM下降而LPIPS改善；应按目标选择权重，不能仅按总loss判断。
+The switching criterion follows the [Turbo author's guidance](https://github.com/hustvl/Turbo-VAED/issues/7#issuecomment-3305673620): observe reconstruction loss and validation metrics stabilizing before enabling GAN. GAN may reduce PSNR/SSIM while improving LPIPS. Select weights according to the target metrics rather than total loss alone.
 
-CPU测试覆盖预算换算/取整、明确采用上游配置、阶段切换保留G状态、GAN断点逐项一致、预算延长、拒绝配方暗改、检查停止点及W&B状态、旧checkpoint字段兼容、plan命令不触发模型或SDK。
+CPU tests cover budget conversion/rounding, adoption of the selected upstream recipe, preservation of G state across stage transitions, exact GAN checkpoint continuation, budget extensions, rejection of unrelated recipe changes, inspection stops and W&B state, legacy checkpoint compatibility, and the plan command avoiding model or SDK initialization.

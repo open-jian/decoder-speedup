@@ -1,29 +1,29 @@
-# AMD 宽度配置：本版只取通道数
+# AMD width configuration: channel counts only
 
-主配置为 `configs/wan22/width.yaml`，采用 AMD HummingbirdXT **v1和v3共有**的宽度。
+The main configuration, `configs/wan22/width.yaml`, uses the widths **shared by AMD HummingbirdXT v1 and v3**.
 
-发布配置中的 `decoder_block_out_channels` 均为 `[32,64,256,512]`。AMD构造器先逆序为 `[512,256,64,32]`，再以第一个512建立入口和middle，所以主宽度按执行顺序为 `[512,512,256,64,32]`。
+Both released configurations specify `decoder_block_out_channels: [32,64,256,512]`. AMD's constructor reverses these to `[512,256,64,32]` and uses the first value, 512, for the entry and middle blocks. The resulting widths in execution order are `[512,512,256,64,32]`.
 
-| 原 Wan 模块 | 原通道数 | 本版通道数 |
+| Original Wan module | Original channels | Student channels |
 |---|---:|---:|
-| 入口 / middle | 1024 | 512 |
+| Entry / middle | 1024 | 512 |
 | upsamples.0 | 1024 | 512 |
 | upsamples.1 | 1024 | 256 |
 | upsamples.2 | 512 | 64 |
-| upsamples.3 / 输出头输入 | 256 | 32 |
+| upsamples.3 / input to output head | 256 | 32 |
 
-只迁移以上宽度数值，按原 Wan 的阶段顺序应用。AMD的上采样位置不同，因此相同阶段序号不代表相同时间/空间分辨率。这里不能称为AMD完整模型或直接使用AMD学生权重。
+Only these width values are transferred, following the original Wan stage order. AMD places upsampling differently, so matching stage indices do not imply matching temporal/spatial resolutions. This is not AMD's full model and does not directly use AMD student weights.
 
-保留原Wan的14个残差块、middle注意力、普通3D卷积、RMS归一化、SiLU、上采样顺序和方式、因果缓存、48通道latent投影，以及12通道输出头和unpatchify。`hidden: {}`，不叠加自拟的块内压缩；相邻卷积与归一化通道随主宽度调整。
+The original Wan model's 14 residual blocks, middle attention, regular 3D convolutions, RMS normalization, SiLU, upsampling order and method, causal caches, 48-channel latent projection, 12-channel output head, and unpatchify operation are retained. `hidden: {}` adds no custom internal narrowing. Adjacent convolution and normalization dimensions follow the stage widths.
 
-一个必要依赖：`upsamples.1` 的首个残差块从同宽变成512→256，原恒等旁路变成原Wan类自带的1×1×1通道投影。没有增加完整残差块。三个DupUp3D旁路的通道重复数为8、4、1，均满足原算子的整数约束。
+One required dependency change occurs in the first residual block of `upsamples.1`: equal input/output widths become 512 to 256, so the original identity shortcut becomes the 1x1x1 channel projection provided by the Wan class. No residual block is added. Channel repeat counts for the three `DupUp3D` shortcuts are 8, 4, and 1, satisfying the original operator's integer constraints.
 
-默认channels-last和compile关闭，权重保持FP32；BF16 AMP同时用于老师和学生。训练里的特征投影/GAN属于恢复手段，不改部署学生结构。本次不引入AMD的DW卷积、层数重排、激活替换、去注意力或新输出头。
+Channels-last and compilation are disabled by default. Weights remain FP32, and both teacher and student use BF16 AMP. Training feature projections and GAN losses are recovery mechanisms and do not change the deployed student architecture. This version does not adopt AMD's depthwise convolutions, layer rearrangements, activation replacements, attention removal, or new output head.
 
-来源固定为此前核查版本：
+Sources are pinned to the revisions previously reviewed:
 
-- [AMD v1 配置](https://huggingface.co/amd/HummingbirdXT/blob/4d3bd2e3a8c96a189ed158ab74b575ec6a424d2c/vae/wan22_v1_tiling_16_12/config.json)
-- [AMD v3 配置](https://huggingface.co/amd/HummingbirdXT/blob/4d3bd2e3a8c96a189ed158ab74b575ec6a424d2c/vae/wan22_v3_tiling_16_12/config.json)
-- [AMD构造器：逆序宽度及middle/up blocks](https://github.com/AMD-AGI/HummingbirdXT/blob/929e90a26c2d023c89f4428aa43869c88817a55e/infer/examples/wan2.2/autoencoder_kl_turbo_vaed_ours_wan22.py#L764)
+- [AMD v1 configuration](https://huggingface.co/amd/HummingbirdXT/blob/4d3bd2e3a8c96a189ed158ab74b575ec6a424d2c/vae/wan22_v1_tiling_16_12/config.json)
+- [AMD v3 configuration](https://huggingface.co/amd/HummingbirdXT/blob/4d3bd2e3a8c96a189ed158ab74b575ec6a424d2c/vae/wan22_v3_tiling_16_12/config.json)
+- [AMD constructor: reversed widths and middle/up blocks](https://github.com/AMD-AGI/HummingbirdXT/blob/929e90a26c2d023c89f4428aa43869c88817a55e/infer/examples/wan2.2/autoencoder_kl_turbo_vaed_ours_wan22.py#L764)
 
-提取字段及本地归档文件哈希保存在 `amd_width_source.json`。初始化与训练参数仍是本框架的选择，不是AMD未公布的训练配方。
+Extracted fields and local archive hashes are recorded in `amd_width_source.json`. Initialization and training parameters remain this framework's choices; they are not AMD's unpublished training recipe.

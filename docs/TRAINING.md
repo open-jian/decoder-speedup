@@ -1,43 +1,43 @@
-# 训练方法与可复现边界
+# Training methods and reproducibility limits
 
-本版使用 AMD v1/v3 的主宽度 `[512,512,256,64,32]`，在原 Wan2.2 上只做缩宽及恢复训练。宽度来源见 [AMD_WIDTH.md](AMD_WIDTH.md)；不是 AMD 完整学生结构，也不宣称复现 AMD/Turbo 最终模型。
+This version applies AMD v1/v3 stage widths `[512,512,256,64,32]` to the original Wan2.2 decoder, with width reduction and recovery training only. See [AMD_WIDTH.md](AMD_WIDTH.md) for the source. It does not implement AMD's full student architecture or claim to reproduce the final AMD/Turbo models.
 
-## 当前明确采用的做法
+## Current training design
 
-- 固定 Wan 原编码器及原解码器。编码器产生确定性的均值 latent；不训练编码器。
-- 缩宽不改变 latent 的 48 通道、归一化、空间16倍和时间4倍对应关系。
-- 学生 RGB 直接监督原视频，采用 L1、逐帧 VGG LPIPS、选定中间特征 MSE。
-- 特征通道不同，用可训练投影从学生通道映射到老师通道；空间/时间尺寸必须匹配。
-- 可选第二阶段 GAN。G 保留重建/感知/特征损失，再加入对抗项；D 使用 3D PatchGAN 和 hinge loss。
-- 自适应对抗权重计算为 `gan × clamp(||∂(L1+LPIPS)/∂W_last|| / (||∂L_GAN/∂W_last|| + 1e-4), 0, 1e4)`；其中 L1/LPIPS 已乘各自配置系数，特征项不进入分子。
-- AMP 使用 BF16，学生及优化器主权重 FP32。LPIPS 内部使用 FP32。固定学习率 AdamW，EMA 默认0.999。
+- Freeze the original Wan encoder and decoder. The encoder produces deterministic mean latents and is not trained.
+- Preserve the 48-channel latent interface, normalization, 16x spatial factor, and 4x temporal factor.
+- Supervise student RGB against the original video using L1, per-frame VGG LPIPS, and MSE on selected intermediate features.
+- Use trainable projections from student to teacher channel counts when feature widths differ. Temporal and spatial dimensions must match.
+- Support an optional second GAN stage. G retains reconstruction, perceptual, and feature losses and adds an adversarial term. D is a 3D PatchGAN trained with hinge loss.
+- Compute the adaptive adversarial weight as `gan * clamp(||d(L1+LPIPS)/dW_last|| / (||dL_GAN/dW_last|| + 1e-4), 0, 1e4)`. L1 and LPIPS already include their configured coefficients; the feature loss is excluded from the numerator.
+- Use BF16 AMP with FP32 student master weights and optimizer state. LPIPS runs internally in FP32. AdamW uses a constant learning rate; EMA defaults to 0.999.
 
-## 与 Turbo 公开代码的关系
+## Relationship to Turbo's public code
 
-参考其固定老师、原视频 L1、VGG LPIPS、特征监督、后期开 GAN 的思路。参考来源：[Turbo-VAED](https://github.com/hustvl/Turbo-VAED)，研究时固定的版本是 `6bd3adf679f140abb7d87fe183ae69e54bf64a7f`。
+The frozen teacher, original-video L1, VGG LPIPS, feature supervision, and later GAN stage follow the approach in [Turbo-VAED](https://github.com/hustvl/Turbo-VAED). The reviewed revision is `6bd3adf679f140abb7d87fe183ae69e54bf64a7f`.
 
-这些做法不是 AMD 公开的完整训练配方，也不能从 Turbo 代码推出适合本学生的最终宽度、样本数、步数和学习率。本项目的投影头、判别器结构、数据流和 G/D 更新逻辑是明确的工程选择。没有复制原训练脚本中把 microbatch 计作 step、G/D 奇偶切换与梯度累积交织的计数方式。
+These choices do not constitute AMD's complete training recipe, and Turbo's code does not establish the optimal width, dataset size, update count, or learning rate for this student. This framework makes explicit implementation choices for projection heads, discriminator architecture, data flow, and G/D updates. It does not copy the upstream counting scheme that interleaves microbatch steps, alternating G/D iterations, and gradient accumulation.
 
-主配置现采用Turbo公开train.sh的固定1e-4、batch1、累积8、100 epochs、AdamW eps1e-15和EMA0.999。100轮根据固定训练清单换算，不是我们已验证的收敛终点；GAN初始关闭，依据验证结果显式切换。来源与工程差异见 [TURBO_RECIPE.md](TURBO_RECIPE.md)。
+The main configuration adopts the public Turbo `train.sh` settings: constant LR 1e-4, batch size 1, accumulation 8, 100 epochs, AdamW epsilon 1e-15, and EMA 0.999. The fixed training manifest determines the update count for 100 epochs; this is a budget, not a validated convergence point. GAN is initially disabled and enabled explicitly based on validation. See [TURBO_RECIPE.md](TURBO_RECIPE.md) for sources and implementation differences.
 
-## 初始化与结构
+## Initialization and architecture
 
-`teacher_prefix` 截取老师权重前若干通道，按 Q/K/V 和时间扩展分组分别处理。RMS norm 的通道数/缩放由学生类重新建立。它不是 SVD、不是通道重要性排名，也不是函数等价变换；尤其上采样旁路随宽度的重排语义变化，需要恢复训练适配。
+`teacher_prefix` takes leading teacher channels while preserving Q/K/V and temporal expansion groups. The student rebuilds RMS normalization with the appropriate channel counts and scaling. This is neither SVD nor channel-importance ranking, and it does not preserve the original function exactly. In particular, width changes alter the rearrangement semantics of upsampling shortcuts, which recovery training must accommodate.
 
-默认保留14个残差块，不删注意力、不换激活或卷积。按宽度依赖新增/改变1×1残差投影会体现在学生结构和初始化记录中；不能称整个网络布局在任意宽度下严格不变。
+The default model retains all 14 residual blocks, attention, activations, and convolution operators. Width-dependent additions or changes to 1x1 residual projections are recorded in the student architecture and initialization report. The network layout therefore cannot be described as strictly unchanged for arbitrary widths.
 
-## 数据与断点
+## Data and checkpoints
 
-按原视频 source_id 分 train/val。当前文件清单及SHA256固定到实验，后续下载不会修改样本集合。没有重新筛选 VidGen 画质；只在读取时校验视频能否满足采样长度，失败即报错。
+Split training and validation by original-video `source_id`. File manifests and SHA256 hashes are fixed per experiment; later downloads do not change the sample set. No additional VidGen visual-quality filtering is performed. Loading verifies that a video supports the requested clip length and raises an error otherwise.
 
-每个进程同步读取自己负责的视频，不做数据worker预取；多卡共享全局样本顺序并跳过其他rank的条目，确保断点游标指向下一条实际要读的数据。每条增强由种子/epoch/样本索引确定。断点在完整 G/D 更新边界写入，包含所有继续训练所需状态。CPU回归测试验证续训后逐参数、优化器、EMA与不中断运行一致；不承诺跨 GPU、PyTorch 版本或非确定性 CUDA 内核逐位一致。
+Each process reads its assigned videos synchronously, without data-worker prefetching. Multiple GPUs share a global sample order and skip entries assigned to other ranks, so the saved cursor identifies the next sample to read. Augmentation is determined by the seed, epoch, and sample index. Checkpoints are written at complete G/D update boundaries and contain all state required for continuation. CPU regression tests compare resumed parameters, optimizers, and EMA with uninterrupted execution. Bitwise equivalence is not promised across GPUs, PyTorch versions, or nondeterministic CUDA kernels.
 
-普通完整续训要求相同训练计划。显式 `--start-gan-updates` 和 `--extend-reconstruction-updates` 允许只改变阶段预算，保留G优化器、EMA、数据游标和run；阶段变化写入训练计划历史。改宽度、损失等仍须新建实验，不能绕过配方/来源核验。最终部署不携带判别器或特征投影。
+Ordinary full resume requires the same training plan. Explicit `--start-gan-updates` and `--extend-reconstruction-updates` options allow stage-budget changes while preserving the G optimizer, EMA, data cursor, and run. Stage changes are recorded in the training-plan history. Changes to widths, losses, or other recipe settings require a new experiment and cannot bypass recipe/source checks. Deployment excludes the discriminator and feature projections.
 
-## 在线监控
+## Online monitoring
 
-主配置启用W&B项目 `miaoyin-uta/vae-speedup`。run ID写入完整训练断点，恢复时沿用同一在线run；禁用或调整日志间隔不会被当成训练配方变化。变更W&B项目/实体会明确报错，避免误把原run接到别处。断点的其他配置、模型/数据来源核验保持原规则。
+The main configuration enables W&B project `miaoyin-uta/vae-speedup`. Full training checkpoints store the run ID, and online resume continues that run. Disabling monitoring or changing its logging interval does not count as a training-recipe change. Changing the W&B project/entity raises an explicit error to prevent resuming into the wrong destination. Other configuration, model, and data-source checks remain in force.
 
-训练值固定每50次G更新汇总均值/最大值上报，验证默认每1000步，系统指标每30秒。训练日志不按时间触发；窗口状态随checkpoint保存。详见 [监控体系](MONITORING.md)。
+Training means/maxima are logged every 50 G updates, validation defaults to every 1,000 updates, and system metrics are sampled every 30 seconds. Training logs are not triggered by elapsed time. Checkpoints preserve the aggregation window. See [monitoring conventions](MONITORING.md).
 
-多卡执行、全局batch计数及断点迁移见 [DISTRIBUTED.md](DISTRIBUTED.md)。
+See [DISTRIBUTED.md](DISTRIBUTED.md) for multi-GPU execution, global batch counting, and checkpoint migration.

@@ -1,88 +1,88 @@
-# 训练监控约定
+# Training monitoring conventions
 
-项目为 [miaoyin-uta/vae-speedup](https://wandb.ai/miaoyin-uta/vae-speedup)。监控不改变训练预算、优化器更新和验证样本。这里规定的是记录方式，不是已验证的训练配方。
+The project is [miaoyin-uta/vae-speedup](https://wandb.ai/miaoyin-uta/vae-speedup). Monitoring does not change training budgets, optimizer updates, or validation samples. This document specifies logging behavior, not a validated training recipe.
 
-## 实验怎么组织
+## Experiment organization
 
-| 层级 | 当前约定 | 用途 |
+| Level | Current convention | Purpose |
 | --- | --- | --- |
-| Project | `vae-speedup` | 放所有解码器加速实验，以后加其他模型也用这个项目 |
-| Group | `wan22-width-recovery` | 同一研究问题的一组实验；后续减层、算子替换另开 group |
-| Job type | `decoder-recovery` / `quality-eval` / `decode-benchmark` / `connection-check` | 区分训练、独立评测、独立测速、连接检查 |
-| Run | 一次训练计划 | 在线断点续训用同一 ID；改宽度或损失建立新run；显式阶段切换/预算延长可保留同一run并记录历史 |
-| Name | `wan22-w512-512-256-64-32-teacher_prefix-rec-s42-<id>` | 看得出模型、宽度、初始化、训练阶段、种子；最后的 ID 防重名 |
+| Project | `vae-speedup` | All decoder acceleration experiments, including future models |
+| Group | `wan22-width-recovery` | Experiments addressing the same research question; use separate groups for depth reduction or operator replacement |
+| Job type | `decoder-recovery` / `quality-eval` / `decode-benchmark` / `connection-check` | Training, standalone evaluation, standalone timing, and connectivity checks |
+| Run | One training plan | Online resume retains the ID; changed widths/losses require a new run; explicit stage transitions or budget extensions can retain the run and record history |
+| Name | `wan22-w512-512-256-64-32-teacher_prefix-rec-s42-<id>` | Identifies model, widths, initialization, stage, and seed; the final ID avoids duplicate names |
 
-自动标签：`model:wan22`、`method:width-only`、`width:amd-v1-v3`、`init:teacher_prefix`、`recipe:rec`、`purpose:decoder-recovery`。主配置另加 `data:vidgen-1m`。
+Automatic tags: `model:wan22`, `method:width-only`, `width:amd-v1-v3`, `init:teacher_prefix`, `recipe:rec`, and `purpose:decoder-recovery`. The main configuration adds `data:vidgen-1m`.
 
-- `recipe` 根据实际预算自动生成：仅重建为 `rec`，两阶段为 `rec-gan`，仅GAN为 `gan`。
-- `width:amd-v1-v3` 仅用于 `[512,512,256,64,32]` 且没有额外块内缩宽的配置，表示采用其宽度数值。
-- 原宽度对照自动标为 `method:original`。自动标签命名空间由代码决定，避免手写标签与实际结构冲突。
-- 学习率、seed、batch、梯度累积、各损失系数、尺寸、步数、精度、数据清单哈希放结构化 config；不全部塞进 tag。
-- Group 是实验集合，不保证可直接比较。比较画质须核对老师权重、验证清单、实际验证片段数、尺寸/帧数和评测口径；比较耗时还须核对硬件、精度、执行开关和预热/重复次数。
+- `recipe` is derived from the actual budget: `rec` for reconstruction only, `rec-gan` for two stages, and `gan` for GAN only.
+- `width:amd-v1-v3` applies only to `[512,512,256,64,32]` without additional internal narrowing. It identifies the source of the width values.
+- Original-width controls receive `method:original`. Code owns automatic tag namespaces to prevent manually supplied tags from contradicting the architecture.
+- Store learning rates, seeds, batches, accumulation, loss coefficients, dimensions, update counts, precision, and manifest hashes in structured config rather than encoding everything as tags.
+- A group does not guarantee direct comparability. Quality comparisons require matching teacher weights, validation manifests, actual clip counts, dimensions/frame counts, and metric definitions. Timing also requires matching hardware, precision, execution options, and warmup/repeat counts.
 
-## 按什么频率记录
+## Logging frequency
 
-| 内容 | 默认频率 | 具体含义 |
+| Content | Default frequency | Meaning |
 | --- | --- | --- |
-| 训练损失、GAN、梯度、学习率、进度、更新耗时 | **每50次 G 参数更新** | 在绝对第50、100、150…步记录；与训练快慢无关 |
-| 老师/学生画质 | **每1000次 G 更新及结束** | 同一固定验证清单的前16段，学生用EMA；结束恰好落在验证点则直接复用结果 |
-| GPU/CPU/内存等 SDK 系统指标 | **每30秒** | 按运行时间展示，独立于训练步数 |
-| 解码测速 | 显式运行 `benchmark` 时 | 默认只保存本地JSON；另加 `--log-wandb` 才在测完后上传独立run |
-| 权重断点 | 当前每1000步、重建阶段结束、训练结束 | 保存到本地；默认不上传 W&B |
-| 视频、图像、梯度直方图、模型图 | 默认不记录 | 当前先使用标量；后续需要目视检查时另加固定少量样本、稀疏频率 |
+| Training losses, GAN, gradients, LR, progress, update time | **Every 50 G parameter updates** | Absolute updates 50, 100, 150, etc., independent of training speed |
+| Teacher/student quality | **Every 1,000 G updates and at completion** | First 16 clips of the fixed validation manifest, using student EMA; reuse results if completion coincides with validation |
+| SDK GPU/CPU/memory metrics | **Every 30 seconds** | Displayed by wall time, independently of training updates |
+| Decode timing | Explicit `benchmark` command | Local JSON by default; `--log-wandb` uploads to a separate run after timing finishes |
+| Weight checkpoints | Every 1,000 updates, reconstruction-stage end, and training end | Saved locally; not uploaded to W&B by default |
+| Videos, images, gradient histograms, model graphs | Disabled by default | Start with scalar metrics; add a small fixed sample set at sparse intervals if visual inspection is needed |
 
-一步指 **G 优化器真正更新一次**，不是一个microbatch，也不是D更新一次。所有训练、质量曲线使用 `progress/generator_updates` 为横轴，W&B自己的 `_step` 只是日志序号。
+One step means **one actual G optimizer update**, not one microbatch or one D update. All training and quality curves use `progress/generator_updates` as the x-axis. W&B's own `_step` is only a log-record index.
 
-每个训练窗口计算所有步的**均值、最大值**，总损失还记录末值。主曲线看均值，排查尖峰看最大值。本地 `train.jsonl` 仍保留每一步的值，终端按50步输出。
+Each training window computes **means and maxima** across all updates; total loss also records its final value. Use means for the main curves and maxima to inspect spikes. Local `train.jsonl` retains every update; terminal output is emitted every 50 updates.
 
-首步/阶段首步额外预览，但不从累计窗口移除：第50步仍统计第1—50步。阶段末尾、训练结束和可捕获异常退出会提交不足50步的尾段，并记录窗口起点、实际步数和原因。阶段切换时清空窗口，不把重建与GAN损失混在一个均值里。常规记录点仍为50的整数倍。
+The first update and each stage's first update receive an additional preview without being removed from the aggregation window: the record at update 50 still covers updates 1 through 50. Stage endings, training completion, and catchable exceptions flush partial windows with their start, actual update count, and reason. A stage transition clears the window so reconstruction and GAN losses are not averaged together. Regular logging points remain multiples of 50.
 
-因此120步的单阶段运行，训练记录点为 **1、50、100、120**；第1点是额外预览，后面各窗口分别含50、50、20次更新。不设置任何按秒触发训练日志的规则。
+A single-stage 120-update run therefore logs at **1, 50, 100, and 120**. The first record is a preview; subsequent windows contain 50, 50, and 20 updates. No elapsed-time trigger is used for training logs.
 
-## 指标分区
+## Metric namespaces
 
-| 分区 | 看什么 |
+| Namespace | Contents |
 | --- | --- |
-| `train/*` | 总损失、RGB L1、LPIPS、特征MSE的均值/最大值；总损失末值 |
-| `gan/*` | 是否启用、G对抗损失、实际GAN权重、D损失；D多次更新取其平均 |
-| `quality/*` | 老师与EMA学生的PSNR、SSIM、LPIPS；学生减老师的差值；实际验证段数与权重类型 |
-| `optim/*` | G/D学习率、裁剪前梯度范数的均值/最大值；D多次更新的范数先取平均 |
-| `progress/*` | G/D更新数、读取批数、epoch、样本游标、阶段和预算完成比例 |
-| `timing/*` | 训练更新耗时的均值/最大值、验证耗时；训练耗时包含读取和前后向，不是解码基准 |
-| `monitor/*` | 窗口起始步数、窗口更新数、记录原因、SDK日志调用次数和耗时 |
-| `decode/*` | 原版、执行优化老师、学生三者的解码中位数/P10/P90、显存、加速倍率、耗时降幅 |
-| SDK系统面板 | GPU利用率、显存和CPU/内存等；按时间排查数据读取或资源瓶颈 |
+| `train/*` | Means/maxima for total loss, RGB L1, LPIPS, and feature MSE; final total loss |
+| `gan/*` | Enabled state, G adversarial loss, effective GAN weight, D loss; multiple D updates are averaged |
+| `quality/*` | Teacher and EMA-student PSNR, SSIM, LPIPS; student-minus-teacher differences; actual clip count and weight type |
+| `optim/*` | G/D learning rates and pre-clipping gradient-norm means/maxima; norms across multiple D updates are averaged first |
+| `progress/*` | G/D update counts, batches read, epoch, sample cursor, stage, and budget completion fraction |
+| `timing/*` | Training-update mean/maximum duration and validation duration; training timing includes data loading and forward/backward passes, not just decoding |
+| `monitor/*` | Window start, window update count, logging reason, SDK log-call count and duration |
+| `decode/*` | Decode median/P10/P90, memory, speedup factor, and latency reduction for original, execution-optimized teacher, and student |
+| SDK system panels | GPU utilization/memory and CPU/memory metrics for diagnosing loading or resource bottlenecks over time |
 
-训练指标为原始损失分量，系数保存在config；总损失为加权后结果。不同训练阶段的总损失不能直接当作同一个画质指标。
+Training component metrics are raw losses; coefficients are stored in config. Total loss is weighted. Total losses from different stages are not directly interchangeable quality metrics.
 
-`best/psnr_db`、`best/ssim` 取最大，`best/lpips` 取最小，分别保存对应更新次数。它们可能出现在不同断点，**不表示存在一份同时达到三项最优值的权重**；当前导出的 `student.pt` 仍是最终EMA，不是自动挑选的最优断点。
+`best/psnr_db` and `best/ssim` track maxima; `best/lpips` tracks the minimum. Each stores its corresponding update count. These values may come from different checkpoints and **do not imply that one set of weights achieves all three best values**. The exported `student.pt` remains the final EMA, not an automatically selected best checkpoint.
 
-独立评测/测速默认不初始化W&B，即使复用了启用监控的训练配置。显式添加 `--log-wandb` 后分别使用 `wan22-quality-eval` / `wan22-decode-benchmark` group，新run包含学生文件SHA256和来源训练run ID；不恢复或写入训练run。训练内定期验证仍写入原训练run。上传标签中的宽度来自实际学生文件，不从用于测速的配置猜测。速度倍率与耗时降幅分别保存，例如20倍对应耗时下降95%。
+Standalone evaluation/benchmarking does not initialize W&B by default, even when using a training configuration with monitoring enabled. Explicit `--log-wandb` uses groups `wan22-quality-eval` and `wan22-decode-benchmark`, respectively. New runs contain the student file SHA256 and source training run ID; they do not resume or write to the training run. Periodic in-training validation still writes to the original training run. Uploaded width tags come from the actual student artifact rather than being inferred from the benchmark configuration. Speedup factors and latency reductions are stored separately: for example, 20x speedup means a 95% latency reduction.
 
-## 控制监控开销
+## Controlling overhead
 
-1. 每一步只累计已有CPU标量，50步合并为一次 `run.log({...})`；不为每项指标分别调用SDK。
-2. 训练器把用于记录的损失和梯度标量合并为一次CPU拷贝/更新；原有非有限值检查保留。tracker不调用 `.item()`、CUDA同步或额外前向。
-3. 使用SDK自带后台上传机制，不另起一个无界线程队列；不在训练热路径调用云端查询、登录、文件上传、`watch()`或 `finish()`。
-4. 初始化一次，结束一次；关闭源码、Git和控制台上传。正式测速完成后才建立监控run，避免SDK系统采样干扰计时。
-5. 每次SDK日志调用的主线程耗时都计入 `monitor/sdk_log_seconds` / `monitor/sdk_log_ms_max`，结束时写summary；曲线中的 `*_so_far` 截至前一次调用。它们不包含初始化/结束、后台网络/系统采样的全部开销，不能当作完整训练性能损耗。
-6. `mode: offline` 可只存本地SDK日志，再用 `wandb sync` 同步；在线时SDK后台传输不等于严格零阻塞。若实测调用拖慢训练，先增加 `log_every`，仍保持固定步数。
+1. Accumulate existing CPU scalars each update and combine them into one `run.log({...})` call every 50 updates. Do not call the SDK separately for each metric.
+2. The trainer batches logged loss/gradient scalars into one CPU transfer per update while retaining nonfinite-value checks. The tracker does not call `.item()`, synchronize CUDA, or run additional forward passes.
+3. Use the SDK's background uploader rather than an extra unbounded thread queue. Keep cloud queries, login, file uploads, `watch()`, and `finish()` out of the training hot path.
+4. Initialize once and finish once. Disable source-code, Git, and console uploads. Create standalone monitoring runs only after timing completes to avoid SDK system sampling during benchmarks.
+5. Record main-thread SDK log-call overhead in `monitor/sdk_log_seconds` and `monitor/sdk_log_ms_max`, and write a final summary. Curve fields ending in `*_so_far` cover calls through the previous log. They exclude initialization/finalization and total background network/system-sampling overhead, so they are not the complete monitoring cost.
+6. `mode: offline` keeps local SDK logs for later `wandb sync`. Online background transfer does not guarantee zero blocking. If measured calls slow training, increase `log_every` while retaining fixed update intervals.
 
-每50步仅产生约一次含几十个标量的训练记录。20,000步约400条常规记录，另加首步、验证和边界记录。窗口聚合不会让记录数随模型快慢变化。
+Logging every 50 updates produces approximately one training record containing tens of scalars per interval. A 20,000-update example yields roughly 400 regular records plus previews, validation, and boundary records. Aggregation keeps the record count independent of model speed.
 
-## 恢复与异常
+## Resume and failures
 
-- 完整checkpoint保存run ID、未上传窗口和各画质指标的历史最优值；例如第37步保存，恢复到第50步时仍汇总第1—50步。
-- 在线恢复沿用run；显式GAN切换/重建预算延长保留同一run并更新训练计划，详见TURBO_RECIPE.md；离线SDK不支持原地恢复，因此建立带原ID标记的新日志段。日志间隔可调，训练配方依旧严格校验。
-- 从旧断点重跑时云端已有的后续数据不会自动删除；需要干净对照时，使用学生权重开启新的实验。
-- 沿用原在线run但断点落后于云端时，先只读核实最大 `progress/generator_updates=N`，再用 `train ... --resume ... --wandb-log-after-update N`。补跑到N时不上传重复训练或验证点；旧窗口若完全落在该范围内会清空，N之后按原绝对步数重新累计。保留原历史可能包含补跑前的数值，不能保证GPU补跑逐位相同；应归档原本地日志并记录恢复边界，不修改云端旧点。该日志边界随checkpoint保存；本地训练日志仍记录所有重算步数。
-- 可捕获异常写入失败类型并尝试提交已完成更新；断电、SIGKILL等无法保证最终上传，本地断点与日志用于恢复。
-- 日志上传失败不会被悄悄忽略；本地原始指标保留。敏感文件、key、原视频文件名、模型权重不上传。
+- Full checkpoints store the run ID, pending aggregation window, and historical best quality values. For example, resuming a checkpoint at update 37 still aggregates updates 1 through 50 at the next boundary.
+- Online resume reuses the run. Explicit GAN transitions/reconstruction extensions retain it and update the training plan; see TURBO_RECIPE.md. Offline SDK logging cannot resume in place, so it starts a new segment tagged with the original ID. Logging intervals may change while recipe checks remain strict.
+- Replaying an older checkpoint does not automatically delete later cloud records. Use student weights to start a new experiment when a clean comparison is needed.
+- To retain an online run whose logs extend beyond the checkpoint, first read the maximum `progress/generator_updates=N`, then use `train ... --resume ... --wandb-log-after-update N`. Replayed training/validation points through N are not uploaded. Old windows entirely within that range are cleared; aggregation restarts after N using the original absolute update boundaries. Retained cloud history may contain pre-replay values; GPU replay is not guaranteed bitwise identical. Archive original local logs and record the resume boundary without editing old cloud points. Checkpoints retain this logging boundary; local training logs still include every replayed update.
+- Catchable exceptions record the failure type and attempt to flush completed updates. Power loss or SIGKILL cannot guarantee final uploads; local checkpoints and logs support recovery.
+- Upload failures are not silently ignored. Local raw metrics are retained. Sensitive files, keys, original video filenames, and model weights are not uploaded.
 
-## 查看顺序
+## Reading results
 
-在W&B先筛选 `group=wan22-width-recovery`、`job_type=decoder-recovery`。先看 `quality` 三项画质和差值，再看 `train/gan` 恢复过程、`optim` 梯度稳定性，最后看 `timing/monitor` 和系统资源。显式上传的独立测速筛选 `group=wan22-decode-benchmark`、`job_type=decode-benchmark`，按来源run或学生SHA256关联画质结果。
+In W&B, filter by `group=wan22-width-recovery` and `job_type=decoder-recovery`. First inspect the three `quality` metrics and teacher differences, then `train/gan` recovery curves and `optim` stability, followed by `timing/monitor` and system resources. For explicitly uploaded standalone timings, filter by `group=wan22-decode-benchmark` and `job_type=decode-benchmark`, and associate quality results through the source run or student SHA256.
 
-指标前缀会形成相应分区；这里没有声称已创建一份自定义网页仪表盘。后续实验多了可以按上述顺序固定面板和比较表列。
+Metric prefixes organize the sections; this document does not claim a custom web dashboard has been created. As experiments accumulate, panels and comparison-table columns can be arranged in this order.
 
-接口参考：[W&B Run日志与自定义横轴](https://docs.wandb.ai/ref/python/experiments/run/)、[SDK系统采样设置](https://github.com/wandb/wandb/blob/main/wandb/sdk/wandb_settings.py)。本工程采用固定步数合并标量，系统采样间隔通过 `x_stats_sampling_interval` 设置。
+API references: [W&B Run logging and custom axes](https://docs.wandb.ai/ref/python/experiments/run/) and [SDK system-sampling settings](https://github.com/wandb/wandb/blob/main/wandb/sdk/wandb_settings.py). This framework aggregates scalars at fixed update intervals and sets system sampling through `x_stats_sampling_interval`.

@@ -1,73 +1,73 @@
-# 首版验证记录
+# Initial validation record
 
-日期：2026-09-30（America/Chicago）。验证功能接入，没有启动真实数据恢复训练。
+Date: 2026-09-30 (America/Chicago). This record covers functional integration; real-data recovery training had not started at that point. Later dated entries describe subsequent checks.
 
-## 自动测试
+## Automated tests
 
-18项测试全部通过：
+All 18 initial tests passed:
 
-- ada0：Python3.12 / PyTorch2.11.0+cu130，CPU执行。
-- erebus：Python3.10 / PyTorch2.7.1+cu128，CPU执行。
-- 完整断点测试：微型 Wan 学生先重建、再 GAN，累积2批更新G，G每更新1次D更新2次；续训后与不中断运行的学生、投影头、D、G/D优化器、EMA和数据位置逐项一致。
-- CLI 集成测试：临时合成视频读取→训练两个更新→评测→完整断点→EMA导出→重新加载→独立质量评测→三路计时。
-- 其余覆盖原结构/因果/重复调用、非均匀宽度/内部宽度、跨时间反传、初始化分组、按原视频划分、过滤未完成解压目录、非法配置、导出源码指纹校验。
+- ada0: Python 3.12 / PyTorch 2.11.0+cu130, running on CPU.
+- erebus: Python 3.10 / PyTorch 2.7.1+cu128, running on CPU.
+- Full-checkpoint test: a tiny Wan student trains first with reconstruction and then GAN, accumulating two batches per G update and making two D updates per G update. Resumed student, projection heads, D, G/D optimizers, EMA, and data position match uninterrupted execution individually.
+- CLI integration: read temporary synthetic videos, train for two updates, evaluate, save a full checkpoint, export EMA, reload, independently evaluate quality, and benchmark three execution cases.
+- Other coverage includes original-architecture equivalence, causality, repeated calls, nonuniform/internal widths, temporal backpropagation, initialization groups, source-video splits, exclusion of unfinished extraction directories, invalid configurations, and export source-fingerprint checks.
 
-这些测试中的参数更新均限于微型模型和合成输入，用于验证框架逻辑；不代表正式恢复结果。
+Parameter updates in these tests are limited to tiny models and synthetic inputs. They validate framework behavior rather than formal recovery results.
 
-## 官方权重接入
+## Integration with official weights
 
-在确认空闲后使用 erebus GPU0：RTX PRO 6000 Blackwell Max-Q 96GB，Torch2.7.1+cu128。
+After confirming availability, the checks used erebus GPU 0: RTX PRO 6000 Blackwell Max-Q 96GB, PyTorch 2.7.1+cu128.
 
-- Wan 权重 SHA256：`20eb789667fa5e60e7516bf509512f6cb61f01b0aa0695eadaea930c13892b36`。
-- VAE 源码 SHA256：`2234634cfd557e020083b92f36a43c4ed69b95e6dcc7e9cbb11ccb2eaf8dc6b4`。
-- ada0 的 Wan fork 提交：`ca724575ae721ac84639c729bc07dbe2428a49de`。erebus 是既有同步工作副本，Git HEAD 仍是 `1ea34ff...` 且 dirty；逐个相关源文件哈希与 ada0 相同。本轮未重置或修改该副本来掩盖差异。
-- 9帧32×32合成输入、FP32权重＋BF16 AMP：原宽度包装后的输出与原代码最大绝对误差 **0**。
-- 非均匀 `[512,512,512,256,64]`，并将 `upsamples.2.upsamples.0` 内宽设128、`upsamples.3.upsamples.0` 内宽设32：输出 `[1,3,9,32,32]`，反传梯度有限，老师无梯度。
-- 此学生导出再加载，最大绝对误差 **0**。
-- 官方真实模型优化器更新数 **0**。只进行一次反向传播检查，没有训练或质量/速度结论。
+- Wan weight SHA256: `20eb789667fa5e60e7516bf509512f6cb61f01b0aa0695eadaea930c13892b36`.
+- VAE source SHA256: `2234634cfd557e020083b92f36a43c4ed69b95e6dcc7e9cbb11ccb2eaf8dc6b4`.
+- Wan fork commit on ada0: `ca724575ae721ac84639c729bc07dbe2428a49de`. Erebus used an existing synchronized working copy whose Git HEAD remained `1ea34ff...` with a dirty tree. Individual relevant source hashes matched ada0. That copy was not reset or modified to conceal the difference.
+- With synthetic 9-frame 32x32 input, FP32 weights, and BF16 AMP, the original-width wrapper had maximum absolute output error **0** against the original code.
+- A nonuniform student with widths `[512,512,512,256,64]`, internal width 128 at `upsamples.2.upsamples.0`, and internal width 32 at `upsamples.3.upsamples.0` produced `[1,3,9,32,32]` output. Backward gradients were finite and the teacher had no gradients.
+- Exporting and reloading that student produced maximum absolute error **0**.
+- The real official model received **0 optimizer updates**. A single backward check did not establish training, quality, or speed results.
 
-另在 erebus 用缓存的预训练 VGG 检查实际 LPIPS 模块：两帧32×32合成输入，输入梯度有限且非零，LPIPS自身参数无梯度。未重新下载权重。
+The actual LPIPS module was also checked on erebus with cached pretrained VGG weights: two synthetic 32x32 frames produced finite, nonzero input gradients, while LPIPS parameters had no gradients. No weights were downloaded again.
 
-## 配置检查
+## Configuration inspection
 
-初始提交 `3d8a9e2` 的 `inspect` 在 meta 设备上统计：原解码器555,049,228参数；当时的示例 `width.yaml` 为130,297,996参数（23.475%）。该自拟宽度现已按用户要求替换为下述AMD宽度。不含原编码器、固定latent投影和训练用特征投影。示例参数量不是测得的速度收益，亦不是已选出的最佳压缩配置。
+At initial commit `3d8a9e2`, `inspect` counted parameters on the meta device: 555,049,228 in the original decoder and 130,297,996 (23.475%) in the then-example `width.yaml`. That custom width configuration was subsequently replaced with the AMD widths below at the user's request. Counts exclude the original encoder, frozen latent projection, and training feature projections. These example counts are neither measured speedups nor an optimal compression configuration.
 
-## 尚待正式实验
+## Experiments pending at initial validation
 
-- 真实 VidGen 训练的画质收敛、显存/吞吐与GAN阶段收益。
-- 各阶段宽度、初始化、训练预算的选择。
-- 同输入/同GPU的原版、执行优化版、学生版解码计时与质量曲线。
-- BF16全量权重、channels-last、compile在具体配置下的收益；编译开关暂标实验功能。
-- 多卡、减层、自动搜索、其他backbone。
+- Quality convergence, memory/throughput, and GAN-stage benefits during real VidGen training.
+- Selection of stage widths, initialization, and training budgets.
+- Decoding timings and quality curves for the original, execution-optimized, and student models on the same GPU and inputs.
+- Benefits of full BF16 weights, channels-last, and compilation for specific configurations; compilation remains experimental.
+- Multiple GPUs, depth reduction, automatic search, and other backbones.
 
-原始 JSON 位于研究归档 `results/20260930_decoder_compress/`，不把大型权重、数据和机器私有环境提交进框架仓库。
+Raw JSON is stored in the separate research archive under `results/20260930_decoder_compress/`. Large weights, datasets, and machine-private environments are excluded from the framework repository.
 
-## AMD 宽度修正验证（2026-09-30）
+## AMD width configuration validation (2026-09-30)
 
-主配置改为 `[512,512,256,64,32]`、`hidden: {}`，来自AMD v1/v3共有的发布宽度。19项CPU测试在ada0和erebus通过，新增回归检查配置来源、14个残差块、注意力、普通卷积及原上采样方式。
+The main configuration changed to `[512,512,256,64,32]` with `hidden: {}`, using the published widths shared by AMD v1/v3. All 19 CPU tests passed on ada0 and erebus, including a new regression for configuration provenance, 14 residual blocks, attention, regular convolutions, and original upsampling.
 
-erebus空闲GPU0上，用原Wan真实权重、9帧32×32合成输入检查这组精确配置：原宽度对齐误差0；AMD宽度学生反传梯度有限、老师无梯度；导出回读误差0。为 `upsamples.1.upsamples.0` 新增的1×1×1旁路投影明确记录在初始化报告中，残差块总数不变。真实模型仍为0次优化器更新，没有画质恢复或速度结论。原始结果为研究归档 `results/20260930_decoder_compress/amd_width_real_weights.json`。
+The exact configuration was checked on available erebus GPU 0 using real Wan weights and synthetic 9-frame 32x32 input: original-width alignment error was 0; student gradients were finite; the teacher had no gradients; export/reload error was 0. The new 1x1x1 shortcut projection at `upsamples.1.upsamples.0` was recorded explicitly in the initialization report. The residual-block count was unchanged. The real model still received zero optimizer updates, with no recovery-quality or speed conclusion. Raw results are in the research archive at `results/20260930_decoder_compress/amd_width_real_weights.json`.
 
-当前纯缩宽decoder有91,198,892参数（原版的16.431%）。该数值不同于AMD完整学生，因为本版保留Wan原来的卷积、注意力、深度和上采样；不能据参数量宣称达到AMD的速度/画质。
+The width-only decoder has 91,198,892 parameters (16.431% of the original). This differs from AMD's complete student because this version retains Wan's convolutions, attention, depth, and upsampling. Parameter counts do not establish AMD-equivalent speed or quality.
 
-## W&B 监控接入验证（2026-09-30）
+## W&B integration validation (2026-09-30)
 
-25项CPU测试在ada0与erebus通过。新增测试覆盖：关闭时不初始化SDK、密钥/私有路径不进入上传配置、真实G/D更新横轴、训练断点保存及恢复run ID、失败退出标记、离线恢复分段和连接检查不产生训练指标。
+All 25 CPU tests passed on ada0 and erebus. New coverage includes no SDK initialization when disabled, exclusion of keys/private paths from uploaded config, actual G/D update axes, run-ID checkpoint/resume, failure status, segmented offline resume, and connectivity checks producing no training metrics.
 
-使用erebus已有登录配置与W&B SDK0.23.1，在 `miaoyin-uta/vae-speedup` 创建并成功结束 [connection-check](https://wandb.ai/miaoyin-uta/vae-speedup/runs/50728c97)。仅上传连接成功与零优化器更新，无模型加载、GPU训练或正式恢复训练；日志接入不改变AMD宽度方案。
+Using erebus's existing credentials and W&B SDK 0.23.1, a [connection-check](https://wandb.ai/miaoyin-uta/vae-speedup/runs/50728c97) run was created and completed in `miaoyin-uta/vae-speedup`. It uploaded connection success and zero optimizer updates only. No model was loaded and no GPU or formal recovery training was run. Monitoring integration did not change the AMD width configuration.
 
-## 固定步数监控验证（2026-09-30）
+## Fixed-update monitoring validation (2026-09-30)
 
-31项CPU测试在ada0、erebus通过。覆盖绝对50步记录点不受更新耗时影响、窗口均值/最大值、第37步断点续接第50步窗口、重建/GAN分段、异常尾段、标签由实际配置生成、画质最优方向及来源run关联。CLI测试确认三路解码计时期间不初始化W&B，最后一次验证不重复执行/上报。
+All 31 CPU tests passed on ada0 and erebus. Coverage includes absolute 50-update logging boundaries independent of update duration, window means/maxima, resuming a checkpoint at update 37 into the window ending at 50, separate reconstruction/GAN windows, exception tails, tags derived from actual configuration, best-metric directions, and source-run association. CLI tests confirmed no W&B initialization during three-case decode timing and no duplicate final validation/evaluation logs.
 
-erebus使用真实W&B SDK0.23.1进行CPU合成标量离线检查，1000次模拟更新：每步记录调用1000次，按50步记录调用21次（含首步预览）；SDK日志调用累计分别0.2369秒和0.0051秒。初始化/结束和后台系统采样开销不包含在此统计中，这不是正式训练或在线网络性能结论。没有加载模型或使用GPU，正式恢复仍未启动。原始结果在研究归档 `results/20260930_decoder_compress/monitoring_sdk.json`。
+An offline CPU check on erebus used real W&B SDK 0.23.1 and synthetic scalars for 1,000 simulated updates. Per-update logging made 1,000 calls; logging every 50 updates made 21 calls, including the first-update preview. Cumulative SDK log-call times were 0.2369 and 0.0051 seconds, respectively. These figures exclude initialization, finalization, and background system sampling. They are not production-training or online-network performance results. No model or GPU was used, and formal recovery training had not started. Raw results are in the research archive at `results/20260930_decoder_compress/monitoring_sdk.json`.
 
-## Turbo配置及阶段续训验证（2026-09-30）
+## Turbo recipe and stage continuation validation (2026-09-30)
 
-主配置采用Turbo公开train.sh的固定1e-4、单卡batch1×累积8、100轮预算、AdamW eps1e-15。两机38项CPU测试通过：epochs按固定样本数换算并取整；检查停止点不修改完整预算；GAN切换保留G参数/优化器/EMA/游标/run；GAN断点继续运行与不中断运行逐项一致；仅允许显式预算变更，拒绝夹带LR/loss变更；旧配置字段兼容。CLI集成覆盖重建断点→开启GAN→检查停止→读取解析配置续训到预算结束。plan命令验证不加载模型或初始化W&B。
+The main configuration adopted Turbo's public `train.sh` settings: constant LR 1e-4, single-GPU batch size 1 with accumulation 8, 100 epochs, and AdamW epsilon 1e-15. All 38 CPU tests passed on both machines. Checks covered conversion/rounding from fixed sample counts to updates, inspection stops preserving full budgets, GAN transitions preserving G parameters/optimizer/EMA/cursor/run, exact GAN checkpoint continuation, explicit budget changes with unrelated LR/loss changes rejected, and compatibility with older configuration fields. CLI integration covered reconstruction checkpoint, GAN activation, inspection stop, and resume with the resolved configuration through budget completion. The plan command was checked to avoid model loading or W&B initialization.
 
-这些参数更新仅发生在CPU微型模型/合成视频的回归测试中；正式Wan恢复训练、真实尺寸显存和训练质量尚未验证。100轮是采用的公开预算设置，不能声称足以恢复我们的学生。来源、初始化/精度等工程差异见TURBO_RECIPE.md。
+These updates occurred only in CPU regression tests with tiny models and synthetic videos. At that point, formal Wan recovery, memory at real training sizes, and training quality had not been validated. The adopted 100-epoch public budget does not establish sufficient recovery for this student. See TURBO_RECIPE.md for sources and initialization/precision differences.
 
-## 实际可解码帧数回归（2026-10-01）
+## Decodable frame-count regression (2026-10-01)
 
-用户授权首轮1万条VidGen正式恢复训练后，数据预检发现部分MP4头部计数包含discard帧，超过实际可解码帧数。清单现可保存核实后的decoded_frames，读取器按此数量抽取训练/验证片段。新增回归模拟头部报告2000帧、文件实际只有20帧，验证17帧随机/中心采样正常，并拒绝非法计数。两机39项CPU测试通过；没有改变学生结构、优化器或损失。
+After the user authorized the first formal run with 10,000 VidGen videos, data checks found that some MP4 header counts include discarded frames and exceed the actual decodable count. Manifests can now store verified `decoded_frames`, which the reader uses for training/validation sampling. A new regression simulates a header reporting 2,000 frames for a file with only 20 decodable frames, checks random/centered 17-frame sampling, and rejects invalid counts. All 39 CPU tests passed on both machines. Student architecture, optimizer, and losses were unchanged.

@@ -7,8 +7,8 @@
   "latest_copied_generator_update": 25175,
   "files": {
     "README.md": {
-      "bytes": 3914,
-      "sha256": "88a93f9ce2d030cdb5ef5e7a7ee5855a1ee6e0ae49a99aa9856c10a55d9e6b96"
+      "bytes": 5325,
+      "sha256": "d5112ed39ad48ee61f2e2e5b099ffaa7b480dcdf4dbc907ec783b9b09d1e68c9"
     },
     "download-snapshot.json": {
       "bytes": 1836213,
@@ -230,5 +230,21 @@
       "bytes": 1622,
       "sha256": "d5851a8345364355efb62276d77f1128b9dae0c8746f6fbd413739c72ab34edb"
     }
-  }
+  },
+  "documentation_revisions": [
+    {
+      "updated_at": "2026-10-02T18:08:22.598470+00:00",
+      "path": "README.md",
+      "reason": "Translate the experiment README into English; retain original experiment data and logs.",
+      "previous": {
+        "bytes": 3914,
+        "sha256": "88a93f9ce2d030cdb5ef5e7a7ee5855a1ee6e0ae49a99aa9856c10a55d9e6b96"
+      },
+      "current": {
+        "bytes": 5325,
+        "sha256": "d5112ed39ad48ee61f2e2e5b099ffaa7b480dcdf4dbc907ec783b9b09d1e68c9"
+      },
+      "previous_git_commit": "9f567dd44398191dca957575e0182c7c9a337b7c"
+    }
+  ]
 }
