@@ -1,14 +1,20 @@
 # decoder-speedup
 
-## Compression branch
+## Width compression + Winograd branch
 
-This is **`wan22-amd-width`**, the branch for AMD stage-width compression and recovery training. The repository's [main branch](https://github.com/open-jian/decoder-speedup/tree/main) is the native Wan2.2 baseline. Use this branch for compressed checkpoints, including `student-80000-ema.pt`.
+This is **`wan22-amd-width-winograd`**. It adds opt-in Winograd and fused inference kernels to the AMD stage-width student from [`wan22-amd-width`](https://github.com/open-jian/decoder-speedup/tree/wan22-amd-width). Existing compressed checkpoints, including `student-80000-ema.pt`, load without weight conversion or retraining. The repository's [main branch](https://github.com/open-jian/decoder-speedup/tree/main) remains the native Wan2.2 baseline; [`winograd`](https://github.com/open-jian/decoder-speedup/tree/winograd) provides the original-width implementation.
 
 ```bash
-git clone --branch wan22-amd-width https://github.com/open-jian/decoder-speedup.git
+git clone --branch wan22-amd-width-winograd https://github.com/open-jian/decoder-speedup.git
 ```
 
-Existing compressed exports require the matching external Wan source. For the 80,000-update EMA artifact, use [open-jian/Wan2.2 at ca72457](https://github.com/open-jian/Wan2.2/tree/ca724575ae721ac84639c729bc07dbe2428a49de) from its `winograd` branch. Winograd is disabled in this compression experiment; the source revision is needed for strict artifact compatibility.
+Existing compressed exports require the matching external Wan source. For the 80,000-update EMA artifact, use [open-jian/Wan2.2 at ca72457](https://github.com/open-jian/Wan2.2/tree/ca724575ae721ac84639c729bc07dbe2428a49de). Keep that source revision for strict artifact compatibility. The new inference kernels live in this framework and do not require modifying or upgrading the external source.
+
+The new adapter is disabled by default. Enable `runtime.winograd: true` for evaluation/benchmarking, or call `decoder_speedup.winograd.install(student)` after loading a student for deployment. It requires CUDA BF16 AMP, FP32 stored weights, and `compile: false`. The original `width.yaml` recovery-training preset is unchanged; `width-winograd.yaml` is inference-only. See [combined inference and checkpoint compatibility](docs/WIDTH_WINOGRAD.md).
+
+The combined adapter uses a policy for the compressed widths: residual convolutions with both channel counts at least 128 use F(2,3), while residual convolutions involving 32/64 channels retain their native backend. Other fusions can still apply in those stages. Larger spatial F43 tiles are available for ablations but disabled by default. Measure the combined decoder directly; speedups from the two separate branches do not multiply automatically.
+
+Optional `decoder_speedup.cuda_graph.capture_decoder` reduces CPU launch overhead for a fixed latent shape. This uses the official PyTorch/NVIDIA CUDA Graph facility, separately from our Winograd kernels; eager execution remains the default. On one RTX 6000 Ada, 81 frames at 240×320, the compressed decoder measured **147.31 ms eager**, **98.11 ms with CUDA Graph**, and **56.64 ms with Winograd + CUDA Graph**. Winograd alone gave no reliable eager improvement. The matched graph-to-graph gain is **1.73× / 42.27% lower latency**. See [usage, restrictions, and full comparison](docs/WIDTH_WINOGRAD.md#optional-cuda-graph).
 
 An independent framework for decoder acceleration and recovery training. The first version applies **the stage widths from AMD v1/v3 to the original Wan2.2 VAE, changing only channel widths**. The original encoder stays frozen while the student decoder is trained. The 48-channel latent interface and normalization convention remain unchanged.
 
@@ -24,13 +30,16 @@ src/decoder_speedup/
   training/       Reconstruction/perceptual/feature losses, GAN, EMA, full checkpoints
   evaluation.py   PSNR, SSIM, LPIPS, decoding latency, memory usage
   runtime.py      Precision, convolution memory layout, inference compilation
+  winograd.py     Reversible inference adapter for exported width-compressed students
+  cuda_graph.py   Optional fixed-shape CUDA Graph capture and checked replay
+  kernels/        Vendored Winograd transforms and fused Triton inference kernels
   export.py       Standalone student weights and architecture
 configs/wan22/    Original-width, local-width, and AMD stage-width configurations
 examples/        Integration checks with official Wan weights
 experiments/     Experiment launch scripts, fixed manifests, and log snapshots
 ```
 
-Wan source code and original weights are external dependencies; this repository neither vendors nor modifies them. The training loop uses model inputs and feature supervision returned by `teacher.prepare()`. Additional decoders can be integrated through new adapters.
+The Wan VAE architecture source and original weights remain external dependencies. This repository packages its inference kernels separately and does not modify the external checkout. The training loop uses model inputs and feature supervision returned by `teacher.prepare()`. Additional decoders can be integrated through new adapters.
 
 The four-GPU recovery run with 10,000 VidGen training videos is documented in the [experiment archive](experiments/20261001_wan22_width_turbo/README.md).
 
@@ -181,7 +190,7 @@ python -m decoder_speedup benchmark configs/wan22/width.yaml \
 
 `benchmark` measures three cases on the same device and inputs: the original architecture with reference execution settings, the original architecture with the selected execution settings, and the student with those same settings. Timing covers complete VAE decoding, excluding encoding, video I/O, and data transfer. Results include warmup, individual timings, medians, percentiles, and additional peak memory. Speedup factors and latency reductions are reported separately, including the student's gain over the execution-optimized teacher. Timing uses fixed random latents; quality evaluation uses real videos separately.
 
-`runtime.precision` selects FP32 or BF16 AMP; `weight_dtype` selects FP32 or BF16 inference weights. Training retains FP32 master weights. `channels_last` independently controls convolution weight layout. `compile` is an **experimental inference option** using `torch.compile` with graph breaks allowed; compatibility and speedup depend on the Wan source and hardware. Initial training and quality evaluation paths do not compile the model.
+`runtime.precision` selects FP32 or BF16 AMP; `weight_dtype` selects FP32 or BF16 inference weights. Training retains FP32 master weights. `channels_last` independently controls convolution weight layout. `compile` is an **experimental inference option** using `torch.compile` with graph breaks allowed; compatibility and speedup depend on the Wan source and hardware. Initial training and quality evaluation paths do not compile the model. `runtime.winograd` selects the separate inference adapter documented in [WIDTH_WINOGRAD.md](docs/WIDTH_WINOGRAD.md); it requires BF16 AMP, FP32 stored weights, CUDA, and compilation disabled.
 
 Deployment requires this framework and the matching Wan source version, but no teacher weights:
 

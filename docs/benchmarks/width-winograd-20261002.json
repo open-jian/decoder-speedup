@@ -1,0 +1,693 @@
+{
+  "description": "81-frame 240x320 complete decoding on one RTX 6000 Ada; graph includes guards, input copy and output clone; cold capture/compilation and encoder/I/O excluded.",
+  "latency": {
+    "created_utc": "2026-10-03T00:05:37.823034+00:00",
+    "gpu": "NVIDIA RTX 6000 Ada Generation",
+    "torch": "2.11.0+cu130",
+    "cuda": "13.0",
+    "cudnn": 91900,
+    "checkpoint_sha256": "f581c5d17f2eec4905d0ef9c05196a654eebc5a9ef92063e55207482587229d8",
+    "step": 80000,
+    "width": {
+      "stages": [
+        512,
+        512,
+        256,
+        64,
+        32
+      ],
+      "hidden": {}
+    },
+    "adapter": {
+      "conv_names": [
+        "middle.0.residual.2",
+        "middle.0.residual.6",
+        "middle.2.residual.2",
+        "middle.2.residual.6",
+        "upsamples.0.upsamples.0.residual.2",
+        "upsamples.0.upsamples.0.residual.6",
+        "upsamples.0.upsamples.1.residual.2",
+        "upsamples.0.upsamples.1.residual.6",
+        "upsamples.0.upsamples.2.residual.2",
+        "upsamples.0.upsamples.2.residual.6",
+        "upsamples.1.upsamples.0.residual.2",
+        "upsamples.1.upsamples.0.residual.6",
+        "upsamples.1.upsamples.1.residual.2",
+        "upsamples.1.upsamples.1.residual.6",
+        "upsamples.1.upsamples.2.residual.2",
+        "upsamples.1.upsamples.2.residual.6"
+      ],
+      "conv_channel_pairs": [
+        [
+          256,
+          256
+        ],
+        [
+          512,
+          256
+        ],
+        [
+          512,
+          512
+        ]
+      ],
+      "conv_count": 16,
+      "f43_names": [],
+      "f43_count": 0,
+      "spatial_f43": false,
+      "f43_min_area": 0,
+      "fuse_norm": true,
+      "fuse_upsample": true,
+      "structural": true,
+      "f43_workspace_mib": {
+        "1024,512": 512,
+        "512,512": 128,
+        "512,256": 128,
+        "256,256": 64
+      }
+    },
+    "latent_shape": [
+      1,
+      48,
+      21,
+      15,
+      20
+    ],
+    "capture_both_seconds": 2.4918807689100504,
+    "graph_vs_eager_bit_exact": {
+      "width": true,
+      "width_winograd": true
+    },
+    "scope": "Complete normalized-latent decoding; graph timings include model validity guards, input copy and output clone. BF16 AMP/FP32weights, TF32off; GPUinput/output, no encoder/I/O/compile/capture in timer; samecard3randomizedblocks x3samples with2warmup everyblock.",
+    "timing": {
+      "native_wan22": {
+        "samples_ms": [
+          1220.763796940446,
+          1219.529127702117,
+          1220.3758843243122,
+          1220.2962785959244,
+          1221.1102340370417,
+          1219.9411876499653,
+          1234.003672376275,
+          1234.73584279418,
+          1231.493629515171
+        ],
+        "mean_ms": 1224.6944059928258,
+        "median_ms": 1220.763796940446,
+        "stdev_ms": 6.607615385937941
+      },
+      "width_eager": {
+        "samples_ms": [
+          148.9238440990448,
+          148.3911070972681,
+          149.47023801505566,
+          146.85404300689697,
+          145.8579245954752,
+          145.86836099624634,
+          146.37341164052486,
+          146.2559439241886,
+          147.7668657898903
+        ],
+        "mean_ms": 147.30685990717677,
+        "median_ms": 146.85404300689697,
+        "stdev_ms": 1.3707445953290736
+      },
+      "width_winograd_eager": {
+        "samples_ms": [
+          144.85067129135132,
+          145.1240722090006,
+          145.57697251439095,
+          157.1987196803093,
+          158.51724334061146,
+          155.81505186855793,
+          151.29484422504902,
+          148.896686732769,
+          152.67405845224857
+        ],
+        "mean_ms": 151.1053689238098,
+        "median_ms": 151.29484422504902,
+        "stdev_ms": 5.327771622866845
+      },
+      "width_graph": {
+        "samples_ms": [
+          98.3040239661932,
+          98.22884760797024,
+          98.02926704287529,
+          98.00134040415287,
+          97.76964969933033,
+          97.7193359285593,
+          98.53793680667877,
+          98.18766824901104,
+          98.23420830070972
+        ],
+        "mean_ms": 98.11247533394231,
+        "median_ms": 98.18766824901104,
+        "stdev_ms": 0.26054902112434497
+      },
+      "width_winograd_graph": {
+        "samples_ms": [
+          57.04367533326149,
+          56.63268826901913,
+          56.60014785826206,
+          56.43317475914955,
+          55.869076400995255,
+          56.12381175160408,
+          57.225119322538376,
+          56.94117210805416,
+          56.904759258031845
+        ],
+        "mean_ms": 56.641513895657326,
+        "median_ms": 56.63268826901913,
+        "stdev_ms": 0.4431833298566622
+      }
+    },
+    "source_sha256": {
+      "src/decoder_speedup/__main__.py": "cf7390a2508a0fcad4777a4a629fc5212ab655cb45845975995f835676a834e3",
+      "src/decoder_speedup/export.py": "1d6cfa1f7f255a357cc1b0160292d95997290ac6d2d934132cad9ec86b6c9fbf",
+      "src/decoder_speedup/evaluation.py": "697ba31259dd91a648431cea39227271069bd37d0499d8f5f6e97ceffb841ee9",
+      "src/decoder_speedup/tracking.py": "2e50d17bc08ba6b3cb023bd6445a150c0e204a30164e7e6b9941fe579aaaa3ea",
+      "src/decoder_speedup/winograd.py": "9ccaa45038cbfeb95591714f56088fb5c24f617c12810f71c108da762d72a532",
+      "src/decoder_speedup/config.py": "5ce3758d131223e88e740e9c8c1a0afdc144720417cb5e56d00d5bbf2c4a1635",
+      "src/decoder_speedup/runtime.py": "3312013977f5df8efd1da5451bb46718f8ee5694dda77bb28b3994d9753f8920",
+      "src/decoder_speedup/cli.py": "fbb592b5e3a4669c492e35c96d9d72fcf62afe530747b3cfeaa0670c7570b448",
+      "src/decoder_speedup/provenance.py": "f0216cad15a75002d0ac8705fe691e566bff34e1f457c59fd6142b1e509ba6e8",
+      "src/decoder_speedup/data.py": "6da3f458f607f29568fb302595d3dac4228457bf2a4e7e40ad90b0779e6ff63b",
+      "src/decoder_speedup/__init__.py": "f6db24be1339375ec65f163f4769ec3579b1d873c33d74cdfa4ce559947634f1",
+      "src/decoder_speedup/cuda_graph.py": "33ee2b64b83b7413f1f66247fd908f125fadec93e9f8b724915e36a34f27b559",
+      "src/decoder_speedup/formats.py": "0acce5d26ae2cbf10444815c6278f877abbc03c873bf5b916f0532e084eb1fd0",
+      "src/decoder_speedup/models/__init__.py": "4ef22d835d15337b6828dfe143ffed6218171f5e0f7d75309fe6a6a74303a508",
+      "src/decoder_speedup/training/losses.py": "106dba9eab909ad5e01c1b8e69cf89df5902af12e5204f57a8513cfadb921550",
+      "src/decoder_speedup/training/budget.py": "5052bfd2555f5873715f8ed1adc6b73f0ae40506084deb755cbbbfdf9235a756",
+      "src/decoder_speedup/training/distributed.py": "6707845fb6cdb0452e9950fa0e55253efdb4cfa656e35294b6518806bfe610f8",
+      "src/decoder_speedup/training/trainer.py": "1fa0dcd19f3d30e5a19295fb43931b9cf2bd0680c6d848b61c8765b5aa7dcba6",
+      "src/decoder_speedup/training/__init__.py": "fcee972e57cbc43a7586ceb4087960b8b2bd2ba37f44c36c09a657ed1760aaf7",
+      "src/decoder_speedup/kernels/__init__.py": "6dbe2d27e77bd6379d41c0e68af5469419198ae465bbdefd40b160b22f98d9d4",
+      "src/decoder_speedup/models/wan22/adapter.py": "7af51f42445b1dc6c9770786f6be0d8e614119611332c3db588f848aa2d50c5b",
+      "src/decoder_speedup/models/wan22/__init__.py": "2e8f46880057a2779745282d09b2f3c2b1b713685f40f946b95fff53d8aaa784",
+      "src/decoder_speedup/kernels/wan22/mixed_f43.py": "5fab75881ba5d64b4e704a7d3f5396a01534d9347d49bc38339b08eafe66466f",
+      "src/decoder_speedup/kernels/wan22/cache_views.py": "dff2539e5d2707e9385d4cb241f1a714c6bb56d025fdb52f52d565282e02b75d",
+      "src/decoder_speedup/kernels/wan22/causal_f43.py": "d0f18083bbbdcd639371257b90e5f99988c750fbe994873fa23e176d520934fb",
+      "src/decoder_speedup/kernels/wan22/adapter.py": "a9a92460043f7304b5aaef04a3931828084d0c46f8ce6c2249bf742f0c387d5c",
+      "src/decoder_speedup/kernels/wan22/norm.py": "178a7681424315e05d823576e663d3fef5c275a25e73c553f1bed4e706dce6a7",
+      "src/decoder_speedup/kernels/wan22/structural_adapter.py": "3d53b216d8e39606a455f7ecf07ba55f964bf6358a4fb1c9dcb40153be735a1e",
+      "src/decoder_speedup/kernels/wan22/causal_kernel.py": "aef730b801ae886d5808d81b9b13cd3d54c5efe4170718d91008e3d9549bc416",
+      "src/decoder_speedup/kernels/wan22/upsample_winograd.py": "4d740016d533fa7169da2822a846b1ae177899645565280a13504133635f1b16",
+      "src/decoder_speedup/kernels/wan22/fused_f43.py": "56ec6b82bf84aee0cb5adfb2354bc956b13c05831b37554332bd7dbd1dd39e9a",
+      "src/decoder_speedup/kernels/wan22/fused_skip.py": "55f3df8f1c8e22e066b36cb9039497c02bb55c76d2aa56d692c4a4d25e0adb18",
+      "src/decoder_speedup/kernels/wan22/causal_adapter.py": "8fb0871a033657b6b7c3590eb18a6f600dec7a5451c7e59c8e5bcaf1740d4fd7",
+      "src/decoder_speedup/kernels/wan22/__init__.py": "7d5c79c0a8c66cf3a141802716b1ed6e9c2fd0eb63889dfecf200f2015bab0a5",
+      "src/decoder_speedup/kernels/wan22/fused_height.py": "22c7d6844fc78eaa465392347c775c5e947fdad4a9a42c26645648bf4b37fe22"
+    },
+    "speedup_vs": {
+      "native_wan22": 21.621851567189882,
+      "width_eager": 2.6006871952352726,
+      "width_winograd_eager": 2.667749474390284,
+      "width_graph": 1.732165484041989,
+      "width_winograd_graph": 1.0
+    },
+    "time_reduction_vs_percent": {
+      "native_wan22": 95.37504918627111,
+      "width_eager": 61.54862446233045,
+      "width_winograd_eager": 62.515220803162165,
+      "width_graph": 42.268795377072685,
+      "width_winograd_graph": 0.0
+    }
+  },
+  "quality": {
+    "created_utc": "2026-10-02T23:59:09.092078+00:00",
+    "clips": 6,
+    "bank": "/home/jian/vae-speedup/experiments/20261002_winograd_full_research/eval_bank.pt",
+    "bank_sha256": "50a4ae82d7a2e2a639a659c886e581c4b7c748d556028cf35ab342f774b4d638",
+    "latent_contract": "Normalized original encoder latent, exact same z passed to Decoder.forward; unchanged 80k EMA student weights.",
+    "metric_contract": "RGB clamped [-1,1]; PSNR/SSIM on [0,1]; VGG LPIPS framewise, equal means across clips.",
+    "means": {
+      "native_student": {
+        "psnr_db": 33.65192891600867,
+        "ssim": 0.9527550141016642,
+        "lpips": 0.05625668726861477
+      },
+      "winograd_student": {
+        "psnr_db": 33.65044435842858,
+        "ssim": 0.9527289172013601,
+        "lpips": 0.05627626304825147
+      }
+    },
+    "by_role": {
+      "evaluation": {
+        "native_student": {
+          "psnr_db": 34.6030023446672,
+          "ssim": 0.9572891145944595,
+          "lpips": 0.0538830915465951
+        },
+        "winograd_student": {
+          "psnr_db": 34.601827697852094,
+          "ssim": 0.9572639614343643,
+          "lpips": 0.05388818960636854
+        }
+      },
+      "validation": {
+        "native_student": {
+          "psnr_db": 31.749782058691608,
+          "ssim": 0.9436868131160736,
+          "lpips": 0.061003878712654114
+        },
+        "winograd_student": {
+          "psnr_db": 31.74767767958156,
+          "ssim": 0.9436588287353516,
+          "lpips": 0.061052409932017326
+        }
+      }
+    },
+    "rows": [
+      {
+        "role": "validation",
+        "dataset": "droid",
+        "index": 0,
+        "crop": 0,
+        "crop_thw": [
+          0,
+          0,
+          0
+        ],
+        "bank_index": 0,
+        "latent_sha256": "a01f154cdb9e1d2b021a9e141dcda2ed4df355d2e678dbff6cf6f36441c4584a",
+        "target_sha256": "d00d9014f38cbbeb28c5423c2a71f84833f2d7a812ede7062500839e69404a86",
+        "native_student": {
+          "psnr_db": 30.95193293806406,
+          "ssim": 0.9283833503723145,
+          "lpips": 0.0693219006061554
+        },
+        "winograd_student": {
+          "psnr_db": 30.949657618803492,
+          "ssim": 0.9283397197723389,
+          "lpips": 0.06942100077867508
+        },
+        "numerical_error": {
+          "max_abs": 0.037109375,
+          "mean_abs": 0.0011137087130919099,
+          "relative_l2": 0.003044556360691786
+        }
+      },
+      {
+        "role": "validation",
+        "dataset": "re10k",
+        "index": 0,
+        "crop": 0,
+        "crop_thw": [
+          0,
+          0,
+          0
+        ],
+        "bank_index": 1,
+        "latent_sha256": "9a3582d8bf6ee3c93b5edb07a8ce8d762b7678eee9c0b21d6d6f2026d1b6e182",
+        "target_sha256": "2d79db7db2d54977ea1305f65a7abea80e03cf81ffc7e76681c91d940596c109",
+        "native_student": {
+          "psnr_db": 32.547631179319154,
+          "ssim": 0.9589902758598328,
+          "lpips": 0.05268585681915283
+        },
+        "winograd_student": {
+          "psnr_db": 32.54569774035963,
+          "ssim": 0.9589779376983643,
+          "lpips": 0.05268381908535957
+        },
+        "numerical_error": {
+          "max_abs": 0.037109375,
+          "mean_abs": 0.0009016819531098008,
+          "relative_l2": 0.004066167399287224
+        }
+      },
+      {
+        "role": "evaluation",
+        "dataset": "droid",
+        "index": 5,
+        "crop": 0,
+        "crop_thw": [
+          0,
+          0,
+          0
+        ],
+        "bank_index": 2,
+        "latent_sha256": "e80e4e516e660fee95b7ce0c81d14acead515f1f1da9cb4c2d29efebc742177f",
+        "target_sha256": "4fc1d63bce7d896ec7c449910e1f9330903474e155c292e0582872886f11ecec",
+        "native_student": {
+          "psnr_db": 33.29123259935884,
+          "ssim": 0.933516263961792,
+          "lpips": 0.06857093423604965
+        },
+        "winograd_student": {
+          "psnr_db": 33.29086125819343,
+          "ssim": 0.9334709048271179,
+          "lpips": 0.06855012476444244
+        },
+        "numerical_error": {
+          "max_abs": 0.037353515625,
+          "mean_abs": 0.000887003552634269,
+          "relative_l2": 0.002487113233655691
+        }
+      },
+      {
+        "role": "evaluation",
+        "dataset": "droid",
+        "index": 6,
+        "crop": 0,
+        "crop_thw": [
+          0,
+          0,
+          0
+        ],
+        "bank_index": 3,
+        "latent_sha256": "0b780ad0ad0e842c309ff939ba10b7ed284af0b45f072919bee0e28901727862",
+        "target_sha256": "d06b997caf15e33a80abac98f9a4e41d97b7f3fd06e9b61bdac84585f6ebeaff",
+        "native_student": {
+          "psnr_db": 36.33104966986301,
+          "ssim": 0.9726349711418152,
+          "lpips": 0.04883413389325142
+        },
+        "winograd_student": {
+          "psnr_db": 36.32903623753291,
+          "ssim": 0.972612202167511,
+          "lpips": 0.04885326325893402
+        },
+        "numerical_error": {
+          "max_abs": 0.0419921875,
+          "mean_abs": 0.0005968983168713748,
+          "relative_l2": 0.0034111037384718657
+        }
+      },
+      {
+        "role": "evaluation",
+        "dataset": "re10k",
+        "index": 6,
+        "crop": 0,
+        "crop_thw": [
+          0,
+          0,
+          0
+        ],
+        "bank_index": 4,
+        "latent_sha256": "86ee0a332495c088ae8770e12cb7e10339ee3975f2360388af69ed248608106b",
+        "target_sha256": "c82a7ef45b4ecd8eb28b6ef95435649dbccc72208793473cb498a40058db12ff",
+        "native_student": {
+          "psnr_db": 34.52170788054576,
+          "ssim": 0.9694511890411377,
+          "lpips": 0.04585592448711395
+        },
+        "winograd_student": {
+          "psnr_db": 34.52316525961274,
+          "ssim": 0.9694463014602661,
+          "lpips": 0.04585055261850357
+        },
+        "numerical_error": {
+          "max_abs": 0.0263671875,
+          "mean_abs": 0.0008922331035137177,
+          "relative_l2": 0.0033589182421565056
+        }
+      },
+      {
+        "role": "evaluation",
+        "dataset": "re10k",
+        "index": 14,
+        "crop": 0,
+        "crop_thw": [
+          0,
+          0,
+          0
+        ],
+        "bank_index": 5,
+        "latent_sha256": "d0b4d09065d0977445587b84d324f51ce78b0883f8f39f26e89af799dec0188c",
+        "target_sha256": "974d225abbd0752fa7a9b197e18caa90c3982f273c982c8e1b91827bdd9e8e1b",
+        "native_student": {
+          "psnr_db": 34.26801922890118,
+          "ssim": 0.9535540342330933,
+          "lpips": 0.05227137356996536
+        },
+        "winograd_student": {
+          "psnr_db": 34.26424803606929,
+          "ssim": 0.9535264372825623,
+          "lpips": 0.05229881778359413
+        },
+        "numerical_error": {
+          "max_abs": 0.037109375,
+          "mean_abs": 0.0007704136660322547,
+          "relative_l2": 0.003554109949618578
+        }
+      }
+    ]
+  },
+  "eager_functional_checks": {
+    "checks": [
+      {
+        "name": "odd_latent_shape_and_finite",
+        "passed": true,
+        "shape": [
+          1,
+          3,
+          9,
+          112,
+          144
+        ]
+      },
+      {
+        "name": "feature_api_preserved",
+        "passed": true,
+        "shapes": {
+          "middle": [
+            1,
+            512,
+            3,
+            7,
+            9
+          ],
+          "upsamples.2": [
+            1,
+            64,
+            9,
+            56,
+            72
+          ]
+        },
+        "hook_fallback_output_error": {
+          "max_abs": 0.01171875,
+          "mean_abs": 0.0003637667396105826,
+          "relative_l2": 0.002312970580533147
+        },
+        "note": "Feature hooks activate the existing structural fallback and can alter floating-point rounding."
+      },
+      {
+        "name": "bounded_numerical_difference",
+        "passed": true,
+        "error": {
+          "max_abs": 0.0234375,
+          "mean_abs": 0.0012301766546443105,
+          "relative_l2": 0.005238774232566357
+        },
+        "note": "Numerical tolerance; reconstruction metrics reported separately."
+      },
+      {
+        "name": "repeat_decode",
+        "passed": true
+      },
+      {
+        "name": "prefix_1_frames_shared_conv2",
+        "passed": true,
+        "raw_prefix_error": {
+          "max_abs": 0.03125,
+          "mean_abs": 0.001937636872753501,
+          "relative_l2": 0.006069112103432417
+        },
+        "note": "Shared conv2 output isolates streaming; native conv2 shape changes may round differently."
+      },
+      {
+        "name": "prefix_5_frames_shared_conv2",
+        "passed": true,
+        "raw_prefix_error": {
+          "max_abs": 0.03125,
+          "mean_abs": 0.001527054118923843,
+          "relative_l2": 0.005729897413402796
+        },
+        "note": "Shared conv2 output isolates streaming; native conv2 shape changes may round differently."
+      },
+      {
+        "name": "future_latent_does_not_change_first_five_frames",
+        "passed": true
+      },
+      {
+        "name": "reset_after_other_sequence",
+        "passed": true
+      },
+      {
+        "name": "alternate_cuda_stream",
+        "passed": true
+      },
+      {
+        "name": "return_to_first_stream",
+        "passed": true
+      },
+      {
+        "name": "disabled_output_exact",
+        "passed": true
+      },
+      {
+        "name": "enabled_again_exact",
+        "passed": true
+      }
+    ],
+    "all_passed": true
+  },
+  "graph_checks": {
+    "preexisting_hooks": "Remove module hooks before capture; Python hooks do not run during graph replay.",
+    "missing_kernel_handle": "Pass kernel_handle=handle when kernels were installed directly.",
+    "grad_rejected": "CUDA Graph decoder is inference-only; use torch.inference_mode().",
+    "same_example": true,
+    "new_random_input": true,
+    "outputs_independent": true,
+    "wrong_shape": "Latent shape, dtype, and device must match the captured example; recapture explicitly.",
+    "wrong_dtype": "Latent shape, dtype, and device must match the captured example; recapture explicitly.",
+    "wrong_device": "Latent shape, dtype, and device must match the captured example; recapture explicitly.",
+    "precision_change": "Model weights, buffers, forwards, hooks, or backends changed; close and recapture.",
+    "weight_storage_change": "Model weights, buffers, forwards, hooks, or backends changed; close and recapture.",
+    "features": "Captured decoding does not return intermediate features.",
+    "training": "CUDA Graph decoder is inference-only; call eval() and recapture.",
+    "eager_interleave_cache_kept": true,
+    "cross_stream": true,
+    "backend_change": "Model weights, buffers, forwards, hooks, or backends changed; close and recapture.",
+    "weight_version_change": "Model weights, buffers, forwards, hooks, or backends changed; close and recapture.",
+    "closed": "This captured decoder is closed; capture a new one.",
+    "close_rebuild": true,
+    "disabled_handle": "Decoder kernel adapter changed; close and recapture.",
+    "reenabled_handle_requires_recapture": "Model weights, buffers, forwards, hooks, or backends changed; close and recapture.",
+    "native_81f_exact": true,
+    "winograd_81f_exact": true
+  },
+  "graph_quality_parity": {
+    "created_utc": "2026-10-03T00:04:23.995226+00:00",
+    "gpu": "NVIDIA RTX 6000 Ada Generation",
+    "torch": "2.11.0+cu130",
+    "clips": 6,
+    "rows": [
+      {
+        "bank_index": 0,
+        "role": "validation",
+        "dataset": "droid",
+        "index": 0,
+        "shape": [
+          1,
+          3,
+          81,
+          240,
+          320
+        ],
+        "bit_exact": true,
+        "error": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      },
+      {
+        "bank_index": 1,
+        "role": "validation",
+        "dataset": "re10k",
+        "index": 0,
+        "shape": [
+          1,
+          3,
+          81,
+          240,
+          320
+        ],
+        "bit_exact": true,
+        "error": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      },
+      {
+        "bank_index": 2,
+        "role": "evaluation",
+        "dataset": "droid",
+        "index": 5,
+        "shape": [
+          1,
+          3,
+          81,
+          240,
+          320
+        ],
+        "bit_exact": true,
+        "error": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      },
+      {
+        "bank_index": 3,
+        "role": "evaluation",
+        "dataset": "droid",
+        "index": 6,
+        "shape": [
+          1,
+          3,
+          81,
+          240,
+          320
+        ],
+        "bit_exact": true,
+        "error": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      },
+      {
+        "bank_index": 4,
+        "role": "evaluation",
+        "dataset": "re10k",
+        "index": 6,
+        "shape": [
+          1,
+          3,
+          81,
+          240,
+          320
+        ],
+        "bit_exact": true,
+        "error": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      },
+      {
+        "bank_index": 5,
+        "role": "evaluation",
+        "dataset": "re10k",
+        "index": 14,
+        "shape": [
+          1,
+          3,
+          81,
+          240,
+          320
+        ],
+        "bit_exact": true,
+        "error": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "relative_l2": 0.0
+        }
+      }
+    ],
+    "all_bit_exact": true,
+    "sequence_reset_exact": true,
+    "cross_stream_exact": true,
+    "earlier_output_preserved_after_replay": true,
+    "bank_sha256": "50a4ae82d7a2e2a639a659c886e581c4b7c748d556028cf35ab342f774b4d638",
+    "student_sha256": "f581c5d17f2eec4905d0ef9c05196a654eebc5a9ef92063e55207482587229d8",
+    "graph_helper_sha256": "33ee2b64b83b7413f1f66247fd908f125fadec93e9f8b724915e36a34f27b559",
+    "script_sha256": "4fb2c31f1c0f8b2ef08a232c0102458dc8dfc181f3e5ae543c0f5e288d7b9697"
+  }
+}

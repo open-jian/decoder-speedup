@@ -107,6 +107,7 @@ class RuntimeConfig:
     weight_dtype: str = "fp32"  # bf16 allowed for inference, never for optimizer master weights
     channels_last: bool = False
     compile: bool = False  # inference only; not part of training/checkpoint state
+    winograd: bool = False  # opt-in inference kernels; checkpoint architecture is unchanged
 
 
 @dataclass
@@ -157,6 +158,15 @@ class Config:
             raise ValueError("precision must be fp32 or bf16")
         if self.runtime.weight_dtype not in {"fp32", "bf16"}:
             raise ValueError("weight_dtype must be fp32 or bf16")
+        if type(self.runtime.winograd) is not bool:
+            raise ValueError("runtime.winograd must be a boolean")
+        if self.runtime.winograd:
+            if self.runtime.precision != "bf16" or self.runtime.weight_dtype != "fp32":
+                raise ValueError("runtime.winograd requires precision=bf16 and weight_dtype=fp32")
+            if self.runtime.compile:
+                raise ValueError("runtime.winograd and runtime.compile cannot be combined in this version")
+            if not self.runtime.device.startswith("cuda"):
+                raise ValueError("runtime.winograd requires a CUDA device")
         for name in ("frames", "height", "width", "frame_stride", "batch_size"):
             positive_int(getattr(self.data, name), f"data.{name}")
         if (self.data.frames - 1) % 4 or self.data.height % 16 or self.data.width % 16:

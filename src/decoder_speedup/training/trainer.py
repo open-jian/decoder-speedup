@@ -49,6 +49,10 @@ class Trainer:
             raise ValueError("Training requires FP32 master weights; use precision=bf16 for AMP")
         if config.runtime.compile:
             raise ValueError("runtime.compile is inference-only; set false for training")
+        if config.runtime.winograd:
+            raise ValueError("runtime.winograd is inference-only; set false for training")
+        if getattr(getattr(student, "_winograd_handle", None), "enabled", False):
+            raise ValueError("Remove the active Winograd handle before training")
         self.config, self.student, self.teacher, self.stream = config, student, teacher, stream
         self.provenance = provenance or {}
         self.device = torch.device(config.runtime.device)

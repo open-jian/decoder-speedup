@@ -22,8 +22,21 @@ def apply_layout(model, enabled):
 
 
 def inference_decoder(model, config):
+    if config.winograd:
+        if (config.precision != "bf16" or config.weight_dtype != "fp32"
+                or config.compile or torch.device(config.device).type != "cuda"):
+            raise ValueError("Winograd requires CUDA BF16 autocast, FP32 weights and compile=false")
+    # Restore before changing dtype/layout or taking a baseline measurement.
+    # The handle is a plain object and never contributes checkpoint parameters.
+    existing = getattr(model, "_winograd_handle", None)
+    if existing is not None:
+        existing.remove()
+        delattr(model, "_winograd_handle")
     dtype = torch.float32 if config.weight_dtype == "fp32" else torch.bfloat16
     model = apply_layout(model.to(device=config.device, dtype=dtype).eval(), config.channels_last)
+    if config.winograd:
+        from .winograd import install
+        model._winograd_handle = install(model)
     if config.compile:
         # Upstream cache control flow may graph-break. Report this as default partial
         # compilation, not fullgraph compilation or a guaranteed speed improvement.

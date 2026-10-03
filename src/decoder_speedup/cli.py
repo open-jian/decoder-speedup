@@ -211,6 +211,8 @@ def run_training(cfg, args):
         raise ValueError("Training requires weight_dtype=fp32")
     if cfg.runtime.compile:
         raise ValueError("Compilation is inference-only in this version")
+    if cfg.runtime.winograd:
+        raise ValueError("Winograd kernels are inference-only; set runtime.winograd=false for training")
     output = Path(cfg.output)
     if output.exists() and any(output.iterdir()) and not args.resume:
         raise FileExistsError("Output directory is not empty; use a new run directory or --resume")
