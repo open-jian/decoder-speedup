@@ -8,6 +8,8 @@ This is **`wan22-amd-width-winograd`**. It adds opt-in Winograd and fused infere
 git clone --branch wan22-amd-width-winograd https://github.com/open-jian/decoder-speedup.git
 ```
 
+For an existing Wan user, start with the [handoff and pipeline integration guide](docs/HANDOFF.md): code setup, the exported weight file, and a `vae.decode`-compatible deployment interface. This artifact targets the 48-channel Wan2.2 VAE used by TI2V-5B; A14B pipelines using the 16-channel Wan2.1 VAE need a different artifact.
+
 Existing compressed exports require the matching external Wan source. For the 80,000-update EMA artifact, use [open-jian/Wan2.2 at ca72457](https://github.com/open-jian/Wan2.2/tree/ca724575ae721ac84639c729bc07dbe2428a49de). Keep that source revision for strict artifact compatibility. The new inference kernels live in this framework and do not require modifying or upgrading the external source.
 
 The new adapter is disabled by default. Enable `runtime.winograd: true` for evaluation/benchmarking, or call `decoder_speedup.winograd.install(student)` after loading a student for deployment. It requires CUDA BF16 AMP, FP32 stored weights, and `compile: false`. The original `width.yaml` recovery-training preset is unchanged; `width-winograd.yaml` is inference-only. See [combined inference and checkpoint compatibility](docs/WIDTH_WINOGRAD.md).
@@ -32,6 +34,7 @@ src/decoder_speedup/
   runtime.py      Precision, convolution memory layout, inference compilation
   winograd.py     Reversible inference adapter for exported width-compressed students
   cuda_graph.py   Optional fixed-shape CUDA Graph capture and checked replay
+  deployment.py   List-based replacement for the official 48-channel VAE decode API
   kernels/        Vendored Winograd transforms and fused Triton inference kernels
   export.py       Standalone student weights and architecture
 configs/wan22/    Original-width, local-width, and AMD stage-width configurations
